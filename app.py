@@ -17,7 +17,6 @@ st.set_page_config(
 # TRATAMENTO DE IMAGEM (LOGO EMBUTIDA/BLINDADA)
 # ==========================================
 def carregar_logo():
-    # Procura por qualquer variação do nome do arquivo
     possiveis_nomes = ["LOGO.PNG", "logo.png", "LOGO.png", "logo.PNG", "LOGO.jpeg", "logo.jpg"]
     for nome in possiveis_nomes:
         if os.path.exists(nome):
@@ -33,19 +32,16 @@ logo_b64 = carregar_logo()
 # ==========================================
 st.markdown(f"""
     <style>
-        /* Importação de tipografia limpa */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         html, body, [class*="css"] {{
             font-family: 'Inter', sans-serif;
         }}
 
-        /* Fundo suave na área de trabalho */
         .stApp {{
             background-color: #f8fafc;
         }}
 
-        /* Barra Superior / Header Corporativo */
         .header-container {{
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             padding: 24px 32px;
@@ -79,7 +75,6 @@ st.markdown(f"""
             border: 1px solid rgba(34, 197, 94, 0.3);
         }}
 
-        /* Estilização da Barra Lateral */
         section[data-testid="stSidebar"] {{
             background-color: #ffffff;
             border-right: 1px solid #e2e8f0;
@@ -91,7 +86,6 @@ st.markdown(f"""
             margin-bottom: 15px;
         }}
 
-        /* Cartões de Métricas */
         div[data-testid="stMetric"] {{
             background-color: #ffffff;
             padding: 16px 20px;
@@ -111,7 +105,6 @@ st.markdown(f"""
             font-weight: 700;
         }}
 
-        /* Botões customizados em Verde Turin */
         .stButton>button, .stDownloadButton>button {{
             background-color: #22c55e !important;
             color: #ffffff !important;
@@ -128,7 +121,6 @@ st.markdown(f"""
             transform: translateY(-1px);
         }}
 
-        /* Upload boxes */
         div[data-testid="stFileUploader"] {{
             background-color: #ffffff;
             padding: 14px;
@@ -139,7 +131,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# BARRA LATERAL (CONFIGURAÇÕES)
+# BARRA LATERAL (CONFIGURAÇÕES & MODELO DE TESTE)
 # ==========================================
 with st.sidebar:
     if logo_b64:
@@ -168,16 +160,58 @@ with st.sidebar:
     data_corte = st.date_input("Corte de Admissão", value=datetime(2026, 9, 23))
 
     st.markdown("---")
+    st.subheader("🧪 Ambiente de Testes")
+    
+    # Gerador da Planilha de Ativos de Teste
+    df_modelo_teste = pd.DataFrame({
+        'Matricula': ['1001', '1002', '1003', '1004', '1005'],
+        'Nome': [
+            'Carlos Alberto Silva',
+            'Mariana Souza Costa',
+            'Roberto Ferreira Lima',
+            'Lucas Henrique Mendes',
+            'Fernanda Oliveira Dias'
+        ],
+        'CPF': [
+            '111.222.333-44',
+            '222.333.444-55',
+            '333.444.555-66',
+            '444.555.666-77',
+            '555.666.777-88'
+        ],
+        'Data_Admissao': [
+            '2023-03-15',
+            '2024-08-10',
+            '2026-09-12',
+            '2026-09-25',
+            '2026-08-28'
+        ],
+        'Saldo_Retroativo_Dias': [0, 0, 0, 0, 3]
+    })
+    
+    buf_modelo = io.BytesIO()
+    with pd.ExcelWriter(buf_modelo, engine='openpyxl') as writer:
+        df_modelo_teste.to_excel(writer, index=False)
+        
+    st.download_button(
+        "📥 Descarregar Planilha de Teste",
+        data=buf_modelo.getvalue(),
+        file_name="ativos_teste.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        help="Gera automaticamente um ficheiro Excel formatado com dados simulados."
+    )
+
+    st.markdown("---")
     st.caption(
         "**Diretrizes de Cálculo:**\n\n"
         "• **Base Civil:** 30 dias fixos (R$ 750,00)\n"
         "• **Faltas:** Desconto de R$ 25,00/dia apurado\n"
         "• **Afastados:** Benefício suspenso integralmente\n"
-        "• **Pós-Corte:** Saldo provisionado p/ mês seguinte"
+        "• **Pós-Corte:** Saldo retido p/ próximo mês"
     )
 
 # ==========================================
-# HEADER PRINCIPAL
+# CABEÇALHO PRINCIPAL
 # ==========================================
 st.markdown("""
     <div class="header-container">
@@ -192,7 +226,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# ENTRADA DE ARQUIVOS
+# ENTRADA DE FICHEIROS
 # ==========================================
 col_up1, col_up2 = st.columns(2)
 with col_up1:
@@ -238,7 +272,7 @@ if file_ativos is not None:
             )
 
             if opcao_faltas == "Importar Relatório de Ponto (.xlsx)":
-                file_faltas = st.file_uploader("Selecione a planilha de ocorrências do ponto", type=["xlsx"])
+                file_faltas = st.file_uploader("Selecione o ficheiro de faltas", type=["xlsx"])
                 if file_faltas is not None:
                     df_faltas = pd.read_excel(file_faltas)
                     df_faltas.columns = [c.strip() for c in df_faltas.columns]
@@ -252,14 +286,14 @@ if file_ativos is not None:
                         df_ativos['Faltas'] = df_ativos['Faltas'].fillna(0)
                         st.success("✅ Faltas integradas com sucesso!")
                     else:
-                        st.error("O arquivo precisa conter a coluna 'Matricula' e uma com 'Faltas'.")
+                        st.error("O ficheiro precisa conter a coluna 'Matricula' e uma com 'Faltas'.")
                         df_ativos['Faltas'] = 0
                 else:
                     df_ativos['Faltas'] = 0
             else:
                 if 'Faltas' not in df_ativos.columns:
                     df_ativos['Faltas'] = 0
-                st.info("💡 Altere a quantidade de faltas diretamente na tabela abaixo:")
+                st.info("💡 Altere as faltas diretamente na coluna 'Faltas' abaixo:")
                 df_ativos = st.data_editor(
                     df_ativos,
                     column_config={
@@ -334,7 +368,7 @@ if file_ativos is not None:
                 with pd.ExcelWriter(buf_ticket, engine='openpyxl') as writer:
                     df_envio.to_excel(writer, index=False)
                 st.download_button(
-                    "⬇️ Baixar Arquivo Pronto para a Ticket (.xlsx)",
+                    "⬇️ Descarregar Arquivo Pronto para a Ticket (.xlsx)",
                     buf_ticket.getvalue(),
                     file_name=f"lote_ticket_{competencia.replace('/', '_')}.xlsx"
                 )
@@ -348,7 +382,7 @@ if file_ativos is not None:
                 with pd.ExcelWriter(buf_completo, engine='openpyxl') as writer:
                     df_final.to_excel(writer, index=False)
                 st.download_button(
-                    "⬇️ Baixar Relatório Completo de Fechamento (.xlsx)",
+                    "⬇️ Descarregar Relatório Completo de Fechamento (.xlsx)",
                     buf_completo.getvalue(),
                     file_name=f"fechamento_completo_{competencia.replace('/', '_')}.xlsx"
                 )
