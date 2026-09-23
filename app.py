@@ -4,20 +4,33 @@ from datetime import datetime
 import io
 import os
 import base64
+from PIL import Image
 
-# Configuração da página
+# ==========================================
+# FAVICON E TÍTULO
+# ==========================================
+icone_separador = "💳"
+possiveis_nomes = ["LOGO.PNG", "logo.png", "LOGO.png", "logo.PNG", "LOGO.jpeg", "logo.jpg"]
+
+for nome in possiveis_nomes:
+    if os.path.exists(nome):
+        try:
+            icone_separador = Image.open(nome)
+            break
+        except Exception:
+            pass
+
 st.set_page_config(
     page_title="Turin | Portal de Gestão de Benefícios",
-    page_icon="💳",
+    page_icon=icone_separador,
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ==========================================
-# TRATAMENTO DE IMAGEM (LOGO EMBUTIDA/BLINDADA)
+# LOGO BASE64
 # ==========================================
 def carregar_logo():
-    possiveis_nomes = ["LOGO.PNG", "logo.png", "LOGO.png", "logo.PNG", "LOGO.jpeg", "logo.jpg"]
     for nome in possiveis_nomes:
         if os.path.exists(nome):
             with open(nome, "rb") as f:
@@ -28,7 +41,7 @@ def carregar_logo():
 logo_b64 = carregar_logo()
 
 # ==========================================
-# CSS PROFISSIONAL - DESIGN CORPORATIVO TURIN
+# CSS PROFISSIONAL - DESIGN TURIN
 # ==========================================
 st.markdown(f"""
     <style>
@@ -38,15 +51,28 @@ st.markdown(f"""
             font-family: 'Inter', sans-serif;
         }}
 
+        .block-container {{
+            padding-top: 1rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+        }}
+
+        header[data-testid="stHeader"] {{
+            background: transparent !important;
+            height: 1.5rem !important;
+        }}
+
         .stApp {{
             background-color: #f8fafc;
         }}
 
         .header-container {{
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            padding: 24px 32px;
+            padding: 18px 26px;
             border-radius: 12px;
-            margin-bottom: 25px;
+            margin-top: 0px !important;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -54,14 +80,14 @@ st.markdown(f"""
             border-left: 6px solid #22c55e;
         }}
         .header-title {{
-            color: #ffffff;
-            font-size: 22px;
+            color: #ffffff !important;
+            font-size: 24px;
             font-weight: 700;
             margin: 0;
             letter-spacing: -0.5px;
         }}
         .header-subtitle {{
-            color: #94a3b8;
+            color: #cbd5e1 !important;
             font-size: 13px;
             margin: 4px 0 0 0;
         }}
@@ -86,6 +112,7 @@ st.markdown(f"""
             margin-bottom: 15px;
         }}
 
+        /* Cards de Métricas Estilizados */
         div[data-testid="stMetric"] {{
             background-color: #ffffff;
             padding: 16px 20px;
@@ -101,7 +128,7 @@ st.markdown(f"""
         }}
         div[data-testid="stMetricValue"] {{
             color: #16a34a !important;
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 700;
         }}
 
@@ -131,7 +158,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# BARRA LATERAL (CONFIGURAÇÕES & MODELO DE TESTE)
+# BARRA LATERAL
 # ==========================================
 with st.sidebar:
     if logo_b64:
@@ -157,12 +184,16 @@ with st.sidebar:
     valor_mensal_cheio = dias_base_mes * valor_diario
     st.metric("Total Mensal", f"R$ {valor_mensal_cheio:,.2f}")
     
-    data_corte = st.date_input("Corte de Admissão", value=datetime(2026, 9, 23))
+    data_corte = st.date_input(
+        "Corte de Admissão",
+        value=datetime(2026, 9, 23),
+        format="DD/MM/YYYY"
+    )
 
     st.markdown("---")
     st.subheader("🧪 Ambiente de Testes")
     
-    # Gerador da Planilha de Ativos de Teste
+    # Modelo já com coluna de Unidade/CNPJ simulada
     df_modelo_teste = pd.DataFrame({
         'Matricula': ['1001', '1002', '1003', '1004', '1005'],
         'Nome': [
@@ -186,6 +217,7 @@ with st.sidebar:
             '2026-09-25',
             '2026-08-28'
         ],
+        'Unidade': ['Unidade 1 - Matriz', 'Unidade 2 - Filial', 'Unidade 1 - Matriz', 'Unidade 2 - Filial', 'Unidade 1 - Matriz'],
         'Saldo_Retroativo_Dias': [0, 0, 0, 0, 3]
     })
     
@@ -194,20 +226,10 @@ with st.sidebar:
         df_modelo_teste.to_excel(writer, index=False)
         
     st.download_button(
-        "📥 Descarregar Planilha de Teste",
+        "📥 Baixar Modelo com 2 Unidades",
         data=buf_modelo.getvalue(),
-        file_name="ativos_teste.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        help="Gera automaticamente um ficheiro Excel formatado com dados simulados."
-    )
-
-    st.markdown("---")
-    st.caption(
-        "**Diretrizes de Cálculo:**\n\n"
-        "• **Base Civil:** 30 dias fixos (R$ 750,00)\n"
-        "• **Faltas:** Desconto de R$ 25,00/dia apurado\n"
-        "• **Afastados:** Benefício suspenso integralmente\n"
-        "• **Pós-Corte:** Saldo retido p/ próximo mês"
+        file_name="ativos_teste_unidades.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
 # ==========================================
@@ -230,7 +252,7 @@ st.markdown("""
 # ==========================================
 col_up1, col_up2 = st.columns(2)
 with col_up1:
-    file_ativos = st.file_uploader("1️⃣ Base de Colaboradores Ativos (.xlsx)", type=["xlsx"], help="Obrigatório: Matricula, Nome, CPF, Data_Admissao")
+    file_ativos = st.file_uploader("1️⃣ Base de Colaboradores Ativos (.xlsx)", type=["xlsx"], help="Deve conter: Matricula, Nome, CPF, Data_Admissao e (opcionalmente) Unidade/CNPJ")
 with col_up2:
     file_afastados = st.file_uploader("2️⃣ Relatório de Afastados / INSS (.xlsx - Opcional)", type=["xlsx"], help="Lista de matrículas a suspender no mês")
 
@@ -247,6 +269,10 @@ if file_ativos is not None:
         else:
             df_ativos['Matricula'] = df_ativos['Matricula'].astype(str).str.strip()
             df_ativos['Data_Admissao'] = pd.to_datetime(df_ativos['Data_Admissao'], errors='coerce')
+            
+            # Identifica coluna de unidade/filial se existir
+            col_unidade = [c for c in df_ativos.columns if c.lower() in ['unidade', 'filial', 'cnpj', 'empresa']]
+            nome_col_unidade = col_unidade[0] if col_unidade else None
             
             if 'Saldo_Retroativo_Dias' not in df_ativos.columns:
                 df_ativos['Saldo_Retroativo_Dias'] = 0
@@ -346,35 +372,89 @@ if file_ativos is not None:
             res = df_ativos.apply(processar_regras, axis=1)
             df_final = pd.concat([df_ativos, res], axis=1)
 
-            df_envio = df_final[df_final['Entra_Carga'] == True][['Matricula', 'CPF', 'Nome', 'Valor_Final']].rename(columns={'Valor_Final': 'Valor_Beneficio'})
+            cols_export = ['Matricula', 'CPF', 'Nome', 'Valor_Final']
+            if nome_col_unidade:
+                cols_export.insert(3, nome_col_unidade)
+                
+            df_envio = df_final[df_final['Entra_Carga'] == True][cols_export].rename(columns={'Valor_Final': 'Valor_Beneficio'})
             df_retidos = df_final[df_final['Entra_Carga'] == False]
 
             # ==========================================
-            # PAINEL DE RESULTADOS
+            # PAINEL DE CARDS COM VALORES POR UNIDADE
             # ==========================================
             st.markdown("---")
-            st.subheader("📊 Métricas de Fechamento")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Colaboradores Ativos", len(df_ativos))
-            c2.metric("Créditos a Liberar", len(df_envio))
-            c3.metric("Valor Total do Lote", f"R$ {df_envio['Valor_Beneficio'].sum():,.2f}")
-            c4.metric("Suspensos / Retidos", len(df_retidos))
+            st.subheader("📊 Somatório de Cartões e Valores")
+            
+            valor_total_geral = df_envio['Valor_Beneficio'].sum()
+            total_cartoes_geral = len(df_envio)
 
-            tab1, tab2, tab3 = st.tabs(["✅ Arquivo para Ticket", "🚫 Suspensos / Retidos", "📋 Base Completa de Fechamento"])
+            if nome_col_unidade and df_envio[nome_col_unidade].nunique() > 1:
+                unidades = df_envio[nome_col_unidade].unique()
+                cols_cards = st.columns(1 + len(unidades))
+                
+                # Card 1: Total Geral
+                cols_cards[0].metric(
+                    "TOTAL GERAL (LOTE)",
+                    f"R$ {valor_total_geral:,.2f}",
+                    help=f"{total_cartoes_geral} cartões a carregar"
+                )
+                
+                # Cards das Unidades Individuais
+                for i, u in enumerate(unidades):
+                    df_u = df_envio[df_envio[nome_col_unidade] == u]
+                    val_u = df_u['Valor_Beneficio'].sum()
+                    qtd_u = len(df_u)
+                    cols_cards[i + 1].metric(
+                        f"{str(u).upper()}",
+                        f"R$ {val_u:,.2f}",
+                        help=f"{qtd_u} colaboradores nesta unidade"
+                    )
+            else:
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Cartões a Carregar", total_cartoes_geral)
+                c2.metric("Valor Total do Lote", f"R$ {valor_total_geral:,.2f}")
+                c3.metric("Suspensos / Retidos", len(df_retidos))
+
+            # ==========================================
+            # TABS DE VISUALIZAÇÃO E DOWNLOADS
+            # ==========================================
+            tab1, tab2, tab3 = st.tabs(["✅ Arquivos para Ticket", "🚫 Suspensos / Retidos", "📋 Base Completa de Fechamento"])
 
             with tab1:
                 st.dataframe(df_envio, use_container_width=True)
+                
+                st.markdown("##### 📥 Opções de Download")
+                # Botão do Lote Geral
                 buf_ticket = io.BytesIO()
                 with pd.ExcelWriter(buf_ticket, engine='openpyxl') as writer:
                     df_envio.to_excel(writer, index=False)
                 st.download_button(
-                    "⬇️ Descarregar Arquivo Pronto para a Ticket (.xlsx)",
+                    "⬇️ Baixar Lote Geral Consolidado (.xlsx)",
                     buf_ticket.getvalue(),
-                    file_name=f"lote_ticket_{competencia.replace('/', '_')}.xlsx"
+                    file_name=f"lote_ticket_geral_{competencia.replace('/', '_')}.xlsx"
                 )
 
+                # Se houver mais de uma unidade, permite baixar arquivos individuais por CNPJ
+                if nome_col_unidade and df_envio[nome_col_unidade].nunique() > 1:
+                    st.write("---")
+                    st.caption("Arquivos individuais por Unidade / CNPJ:")
+                    cols_dl = st.columns(len(df_envio[nome_col_unidade].unique()))
+                    for idx, un in enumerate(df_envio[nome_col_unidade].unique()):
+                        df_sub = df_envio[df_envio[nome_col_unidade] == un]
+                        buf_sub = io.BytesIO()
+                        with pd.ExcelWriter(buf_sub, engine='openpyxl') as writer:
+                            df_sub.to_excel(writer, index=False)
+                        cols_dl[idx].download_button(
+                            f"⬇️ Baixar {un} ({len(df_sub)} cartões)",
+                            buf_sub.getvalue(),
+                            file_name=f"ticket_{str(un).lower().replace(' ', '_')}_{competencia.replace('/', '_')}.xlsx"
+                        )
+
             with tab2:
-                st.dataframe(df_retidos[['Matricula', 'Nome', 'Status', 'Saldo_Proximo_Mes']], use_container_width=True)
+                cols_ret = ['Matricula', 'Nome', 'Status', 'Saldo_Proximo_Mes']
+                if nome_col_unidade:
+                    cols_ret.insert(2, nome_col_unidade)
+                st.dataframe(df_retidos[cols_ret], use_container_width=True)
 
             with tab3:
                 st.dataframe(df_final, use_container_width=True)
@@ -382,7 +462,7 @@ if file_ativos is not None:
                 with pd.ExcelWriter(buf_completo, engine='openpyxl') as writer:
                     df_final.to_excel(writer, index=False)
                 st.download_button(
-                    "⬇️ Descarregar Relatório Completo de Fechamento (.xlsx)",
+                    "⬇️ Baixar Relatório Completo de Fechamento (.xlsx)",
                     buf_completo.getvalue(),
                     file_name=f"fechamento_completo_{competencia.replace('/', '_')}.xlsx"
                 )
