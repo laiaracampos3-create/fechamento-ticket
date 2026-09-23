@@ -99,6 +99,7 @@ st.markdown(f"""
             font-size: 12px;
             font-weight: 600;
             border: 1px solid rgba(34, 197, 94, 0.3);
+            white-space: nowrap;
         }}
 
         section[data-testid="stSidebar"] {{
@@ -112,6 +113,64 @@ st.markdown(f"""
             margin-bottom: 15px;
         }}
 
+        /* Estilização Executiva dos Cards da Sidebar */
+        .param-card {{
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 14px 0 18px 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+            border-left: 4px solid #16a34a;
+        }}
+        .param-item {{
+            margin-bottom: 12px;
+        }}
+        .param-item:last-child {{
+            margin-bottom: 0px;
+        }}
+        .param-label {{
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 4px;
+        }}
+        .param-value {{
+            font-size: 13px;
+            font-weight: 600;
+            color: #0f172a;
+            background: #f8fafc;
+            padding: 6px 10px;
+            border-radius: 6px;
+            display: inline-block;
+            border: 1px solid #f1f5f9;
+        }}
+
+        .total-box {{
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 1px solid #bbf7d0;
+            border-radius: 10px;
+            padding: 14px 16px;
+            text-align: center;
+            margin-top: 15px;
+        }}
+        .total-label {{
+            font-size: 11px;
+            font-weight: 700;
+            color: #15803d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }}
+        .total-value {{
+            font-size: 24px;
+            font-weight: 800;
+            color: #166534;
+            margin-top: 2px;
+        }}
+
+        /* Métricas e Botões */
         div[data-testid="stMetric"] {{
             background-color: #ffffff;
             padding: 16px 20px;
@@ -157,59 +216,24 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# DICIONÁRIO DE COMPETÊNCIAS PRE-DEFINIDAS
+# COMPETÊNCIAS PRÉ-DEFINIDAS (D-2 PARA FALTAS)
 # ==========================================
-ANO_VIGENTE = 2026
+hoje = date.today()
+ANO_VIGENTE = hoje.year
 
 CONFIG_COMPETENCIAS = {
-    f"01/01/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/10/{ANO_VIGENTE-1} a 15/11/{ANO_VIGENTE-1}",
-        "corte_admissao": date(ANO_VIGENTE-1, 12, 23)
-    },
-    f"01/02/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/11/{ANO_VIGENTE-1} a 15/12/{ANO_VIGENTE-1}",
-        "corte_admissao": date(ANO_VIGENTE, 1, 23)
-    },
-    f"01/03/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/12/{ANO_VIGENTE-1} a 15/01/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 2, 23)
-    },
-    f"01/04/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/01/{ANO_VIGENTE} a 15/02/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 3, 23)
-    },
-    f"01/05/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/02/{ANO_VIGENTE} a 15/03/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 4, 23)
-    },
-    f"01/06/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/03/{ANO_VIGENTE} a 15/04/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 5, 23)
-    },
-    f"01/07/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/04/{ANO_VIGENTE} a 15/05/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 6, 23)
-    },
-    f"01/08/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/05/{ANO_VIGENTE} a 15/06/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 7, 23)
-    },
-    f"01/09/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/06/{ANO_VIGENTE} a 15/07/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 8, 23)
-    },
-    f"01/10/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/07/{ANO_VIGENTE} a 15/08/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 9, 23)
-    },
-    f"01/11/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/08/{ANO_VIGENTE} a 15/09/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 10, 23)
-    },
-    f"01/12/{ANO_VIGENTE}": {
-        "periodo_faltas": f"16/09/{ANO_VIGENTE} a 15/10/{ANO_VIGENTE}",
-        "corte_admissao": date(ANO_VIGENTE, 11, 23)
-    }
+    f"01/01/{ANO_VIGENTE}": f"16/10/{ANO_VIGENTE-1} a 15/11/{ANO_VIGENTE-1}",
+    f"01/02/{ANO_VIGENTE}": f"16/11/{ANO_VIGENTE-1} a 15/12/{ANO_VIGENTE-1}",
+    f"01/03/{ANO_VIGENTE}": f"16/12/{ANO_VIGENTE-1} a 15/01/{ANO_VIGENTE}",
+    f"01/04/{ANO_VIGENTE}": f"16/01/{ANO_VIGENTE} a 15/02/{ANO_VIGENTE}",
+    f"01/05/{ANO_VIGENTE}": f"16/02/{ANO_VIGENTE} a 15/03/{ANO_VIGENTE}",
+    f"01/06/{ANO_VIGENTE}": f"16/03/{ANO_VIGENTE} a 15/04/{ANO_VIGENTE}",
+    f"01/07/{ANO_VIGENTE}": f"16/04/{ANO_VIGENTE} a 15/05/{ANO_VIGENTE}",
+    f"01/08/{ANO_VIGENTE}": f"16/05/{ANO_VIGENTE} a 15/06/{ANO_VIGENTE}",
+    f"01/09/{ANO_VIGENTE}": f"16/06/{ANO_VIGENTE} a 15/07/{ANO_VIGENTE}",
+    f"01/10/{ANO_VIGENTE}": f"16/07/{ANO_VIGENTE} a 15/08/{ANO_VIGENTE}",
+    f"01/11/{ANO_VIGENTE}": f"16/08/{ANO_VIGENTE} a 15/09/{ANO_VIGENTE}",
+    f"01/12/{ANO_VIGENTE}": f"16/09/{ANO_VIGENTE} a 15/10/{ANO_VIGENTE}"
 }
 
 # ==========================================
@@ -227,23 +251,40 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-    st.subheader("⚙️ Parâmetros do Fechamento")
+    st.markdown("### ⚙️ Parâmetros do Fechamento")
     
     lista_competencias = list(CONFIG_COMPETENCIAS.keys())
+    idx_padrao = min(max(0, hoje.month - 1), 11)
+    
     competencia_selecionada = st.selectbox(
         "Mês de Pagamento do Ticket",
         options=lista_competencias,
-        index=9
+        index=idx_padrao
     )
     
-    dados_comp = CONFIG_COMPETENCIAS[competencia_selecionada]
-    periodo_faltas_ativo = dados_comp["periodo_faltas"]
-    data_corte = dados_comp["corte_admissao"]
+    periodo_faltas_ativo = CONFIG_COMPETENCIAS[competencia_selecionada]
 
-    st.info(
-        f"📅 **Faltas Apuradas (D-2):**\n`{periodo_faltas_ativo}`\n\n"
-        f"✂️ **Corte de Admissão:**\n`{data_corte.strftime('%d/%m/%Y')}`"
+    # Data de corte assume dinamicamente o dia de hoje
+    data_corte = st.date_input(
+        "Corte de Admissão",
+        value=hoje,
+        format="DD/MM/YYYY",
+        help="Admissões posteriores a esta data não entram nesta carga e acumulam saldo para o mês seguinte."
     )
+
+    # Painel Executivo Estilizado
+    st.markdown(f"""
+        <div class="param-card">
+            <div class="param-item">
+                <div class="param-label">🗓️ Período de Ponto (D-2)</div>
+                <div class="param-value">{periodo_faltas_ativo}</div>
+            </div>
+            <div class="param-item">
+                <div class="param-label">✂️ Trava de Admissão</div>
+                <div class="param-value">{data_corte.strftime('%d/%m/%Y')}</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     col_par1, col_par2 = st.columns(2)
     with col_par1:
@@ -252,7 +293,13 @@ with st.sidebar:
         valor_diario = st.number_input("Diária (R$)", min_value=0.0, value=25.00, step=0.50)
         
     valor_mensal_cheio = dias_base_mes * valor_diario
-    st.metric("Total Mensal", f"R$ {valor_mensal_cheio:,.2f}")
+    
+    st.markdown(f"""
+        <div class="total-box">
+            <div class="total-label">Total Mês Cheio</div>
+            <div class="total-value">R$ {valor_mensal_cheio:,.2f}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
     st.caption(
@@ -272,16 +319,16 @@ st.markdown(f"""
     <div class="header-container">
         <div>
             <h1 class="header-title">Portal de Fechamento de Benefícios</h1>
-            <p class="header-subtitle">Competência Selecionada: <b>{competencia_selecionada}</b> (Faltas de {periodo_faltas_ativo})</p>
+            <p class="header-subtitle">Competência: <b>{competencia_selecionada}</b> (Faltas de {periodo_faltas_ativo}) | Corte: <b>{data_corte.strftime('%d/%m/%Y')}</b></p>
         </div>
         <div class="header-badge">
-            TURIN RH / DP
+            DEPARTAMENTO PESSOAL OURO BRANCO
         </div>
     </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# NAVEGAÇÃO PRINCIPAL (FECHAMENTO VS HISTÓRICO)
+# NAVEGAÇÃO PRINCIPAL
 # ==========================================
 modulo_principal = st.radio(
     "Selecione o módulo de trabalho:",
@@ -306,7 +353,6 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
             df_ativos = pd.read_excel(file_ativos)
             df_ativos.columns = [c.strip() for c in df_ativos.columns]
 
-            # CPF NÃO É MAIS OBRIGATÓRIO (LGPD)
             colunas_necessarias = ['Matricula', 'Nome', 'Data_Admissao']
             ausentes = [c for c in colunas_necessarias if c not in df_ativos.columns]
 
@@ -321,9 +367,9 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 
                 if 'Saldo_Retroativo_Dias' not in df_ativos.columns:
                     df_ativos['Saldo_Retroativo_Dias'] = 0
-                df_ativos['Saldo_Retroativo_Dias'] = df_ativos['Saldo_Retroativo_Dias'].fillna(0)
+                df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
 
-                # Demitidos cruzados por Matrícula
+                # Cruzamento de Demitidos por Matrícula
                 mats_demitidas = set()
                 if file_demitidos is not None:
                     df_demit = pd.read_excel(file_demitidos)
@@ -331,7 +377,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     if 'Matricula' in df_demit.columns:
                         mats_demitidas = set(df_demit['Matricula'].astype(str).str.strip().unique())
 
-                # Afastados cruzados por Matrícula
+                # Cruzamento de Afastados por Matrícula
                 mats_afastadas = set()
                 if file_afastados is not None:
                     df_afast = pd.read_excel(file_afastados)
@@ -362,8 +408,12 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             col_nome = col_faltas[0]
                             df_faltas['Matricula'] = df_faltas['Matricula'].astype(str).str.strip()
                             df_faltas = df_faltas[['Matricula', col_nome]].rename(columns={col_nome: 'Faltas'})
+                            
+                            if 'Faltas' in df_ativos.columns:
+                                df_ativos = df_ativos.drop(columns=['Faltas'])
+                                
                             df_ativos = pd.merge(df_ativos, df_faltas, on='Matricula', how='left')
-                            df_ativos['Faltas'] = df_ativos['Faltas'].fillna(0)
+                            df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
                             st.success(f"✅ Faltas de {periodo_faltas_ativo} integradas com sucesso!")
                         else:
                             st.error("O arquivo precisa conter a coluna 'Matricula' e uma com 'Faltas'.")
@@ -373,6 +423,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 else:
                     if 'Faltas' not in df_ativos.columns:
                         df_ativos['Faltas'] = 0
+                    df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
                     st.info(f"💡 Altere as faltas apuradas em {periodo_faltas_ativo} diretamente na tabela:")
                     df_ativos = st.data_editor(
                         df_ativos,
@@ -383,16 +434,27 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                         use_container_width=True
                     )
 
+                df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
+                df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
+
                 # ==========================================
-                # MOTOR DE CÁLCULO
+                # MOTOR DE CÁLCULO BLINDADO
                 # ==========================================
                 def processar_regras(row):
-                    mat = row['Matricula']
-                    admissao = row['Data_Admissao'].date() if pd.notnull(row['Data_Admissao']) else None
-                    faltas = row.get('Faltas', 0)
-                    saldo_retro = row.get('Saldo_Retroativo_Dias', 0)
+                    mat = str(row['Matricula']).strip()
+                    admissao = row['Data_Admissao']
+                    
+                    data_adm = None
+                    if pd.notnull(admissao):
+                        if isinstance(admissao, (datetime, pd.Timestamp)):
+                            data_adm = admissao.date()
+                        elif isinstance(admissao, str):
+                            data_adm = pd.to_datetime(admissao, errors='coerce').date()
 
-                    # Demitido
+                    faltas = int(row.get('Faltas', 0))
+                    saldo_retro = int(row.get('Saldo_Retroativo_Dias', 0))
+
+                    # 1. Demitido
                     if mat in mats_demitidas:
                         return pd.Series({
                             'Status': 'Demitido (Pago em TRCT)',
@@ -402,7 +464,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             'Saldo_Proximo_Mes': 0
                         })
 
-                    # Afastado
+                    # 2. Afastado
                     if mat in mats_afastadas:
                         return pd.Series({
                             'Status': 'Afastado (Suspenso)',
@@ -412,31 +474,31 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             'Saldo_Proximo_Mes': 0
                         })
 
-                    # Pós-corte
-                    if admissao and admissao > data_corte:
-                        dias_acumular = max(0, 30 - admissao.day + 1)
+                    # 3. Admitido após o corte atual
+                    if data_adm and data_adm > data_corte:
+                        dia_admissao = int(data_adm.day)
+                        dias_acumular = max(0, 30 - dia_admissao + 1)
                         return pd.Series({
-                            'Status': f'Admitido pós-corte ({admissao.strftime("%d/%m")})',
+                            'Status': f'Admitido pós-corte ({data_adm.strftime("%d/%m")})',
                             'Entra_Carga': False,
                             'Dias_Pagar': 0,
                             'Valor_Final': 0.0,
                             'Saldo_Proximo_Mes': saldo_retro + dias_acumular
                         })
 
-                    # Elegível
-                    dias_calculados = max(0, dias_base_mes + saldo_retro - faltas)
+                    # 4. Elegível regular
+                    dias_calculados = max(0, int(dias_base_mes) + saldo_retro - faltas)
                     return pd.Series({
                         'Status': 'Elegível',
                         'Entra_Carga': True,
                         'Dias_Pagar': dias_calculados,
-                        'Valor_Final': dias_calculados * valor_diario,
+                        'Valor_Final': float(dias_calculados * valor_diario),
                         'Saldo_Proximo_Mes': 0
                     })
 
                 res = df_ativos.apply(processar_regras, axis=1)
                 df_final = pd.concat([df_ativos, res], axis=1)
 
-                # Exportação apenas com Matrícula, Nome, Unidade e Valor (Sem CPF)
                 cols_export = ['Matricula', 'Nome', 'Valor_Final']
                 if nome_col_unidade:
                     cols_export.insert(2, nome_col_unidade)
@@ -538,7 +600,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
             st.error(f"Erro no processamento dos dados: {e}")
 
 # --------------------------------------------------------------------------
-# MÓDULO 2: CONSULTA DE HISTÓRICO (SEM CPF)
+# MÓDULO 2: CONSULTA DE HISTÓRICO
 # --------------------------------------------------------------------------
 else:
     st.markdown("### 📂 Consulta & Auditoria de Fechamentos Anteriores")
