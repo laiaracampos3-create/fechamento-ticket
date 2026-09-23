@@ -11,14 +11,12 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilização visual inspirada na identidade visual da Turin
+# Estilização visual institucional da Turin
 st.markdown("""
     <style>
-        /* Cor de destaque principal */
         :root {
             --primary-color: #2eb85c;
         }
-        /* Personalização dos botões principais */
         .stButton>button, .stDownloadButton>button {
             background-color: #2eb85c !important;
             color: white !important;
@@ -31,14 +29,9 @@ st.markdown("""
             background-color: #238a45 !important;
             color: white !important;
         }
-        /* Cartões de métricas */
         div[data-testid="stMetricValue"] {
             color: #2eb85c !important;
             font-weight: 700 !important;
-        }
-        /* Título e cabeçalhos */
-        h1, h2, h3 {
-            color: #1f2937;
         }
         .turin-header {
             display: flex;
@@ -52,7 +45,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# BARRA LATERAL COM IDENTIDADE VISUAL
+# BARRA LATERAL
 # ==========================================
 with st.sidebar:
     if os.path.exists("LOGO.PNG"):
@@ -63,17 +56,22 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("⚙️ Parâmetros do Fechamento")
     competencia = st.text_input("Competência de Pagamento", value="01/10/2026")
-    valor_diario = st.number_input("Valor Diário do Vale (R$)", min_value=0.0, value=30.00, step=1.0)
-    dias_uteis = st.number_input("Dias Úteis do Mês", min_value=1, max_value=31, value=22)
+    
+    # Parâmetros atualizados conforme a regra: 30 dias / R$ 25 diária / R$ 750 total
+    dias_base_mes = st.number_input("Dias Base do Mês", min_value=1, max_value=31, value=30)
+    valor_diario = st.number_input("Valor Diário (R$)", min_value=0.0, value=25.00, step=0.50)
+    valor_mensal_cheio = dias_base_mes * valor_diario
+    st.metric("Valor Mês Cheio", f"R$ {valor_mensal_cheio:,.2f}")
+    
     data_corte = st.date_input("Data de Corte de Admissão", value=datetime(2026, 9, 23))
 
     st.markdown("---")
     st.caption(
-        "**Regras do Fechamento:**\n"
-        "• Demitidos: Retirados (apuração em TRCT)\n"
+        "**Regras:**\n"
+        "• Base mensal: 30 dias fixos (R$ 750,00)\n"
+        "• Diária p/ falta ou fração: R$ 25,00\n"
         "• Afastados: Benefício suspenso\n"
-        "• Admissões pós-corte: Saldo retido p/ próximo mês\n"
-        "• Faltas: Descontadas da competência anterior (16 a 15)"
+        "• Admitidos pós-corte: Saldo retido p/ próximo mês"
     )
 
 # ==========================================
@@ -83,13 +81,13 @@ st.markdown("""
     <div class="turin-header">
         <div>
             <h1 style="margin: 0; font-size: 2rem;">Sistema de Fechamento de Benefícios</h1>
-            <p style="margin: 0; color: #6b7280; font-size: 1rem;">Módulo de Cálculo e Exportação do Vale Alimentação</p>
+            <p style="margin: 0; color: #6b7280; font-size: 1rem;">Módulo de Cálculo do Vale Alimentação (R$ 750,00 / 30 dias)</p>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# UPLOAD DAS BASES DE DADOS
+# UPLOADS
 # ==========================================
 col_up1, col_up2 = st.columns(2)
 with col_up1:
@@ -115,7 +113,7 @@ if file_ativos is not None:
                 df_ativos['Saldo_Retroativo_Dias'] = 0
             df_ativos['Saldo_Retroativo_Dias'] = df_ativos['Saldo_Retroativo_Dias'].fillna(0)
 
-            # Identificar afastados
+            # Afastados
             mats_afastadas = set()
             if file_afastados is not None:
                 df_afast = pd.read_excel(file_afastados)
@@ -148,7 +146,7 @@ if file_ativos is not None:
                         df_faltas = df_faltas[['Matricula', col_nome]].rename(columns={col_nome: 'Faltas'})
                         df_ativos = pd.merge(df_ativos, df_faltas, on='Matricula', how='left')
                         df_ativos['Faltas'] = df_ativos['Faltas'].fillna(0)
-                        st.success("Faltas apuradas e integradas com sucesso.")
+                        st.success("Faltas integradas com sucesso.")
                     else:
                         st.error("O ficheiro precisa ter a coluna 'Matricula' e uma com 'Faltas'.")
                         df_ativos['Faltas'] = 0
@@ -161,7 +159,7 @@ if file_ativos is not None:
                 df_ativos = st.data_editor(
                     df_ativos,
                     column_config={
-                        "Faltas": st.column_config.NumberColumn("Faltas a Descontar", min_value=0, max_value=31, step=1)
+                        "Faltas": st.column_config.NumberColumn("Faltas a Descontar", min_value=0, max_value=30, step=1)
                     },
                     disabled=[c for c in df_ativos.columns if c != 'Faltas'],
                     use_container_width=True
@@ -176,7 +174,7 @@ if file_ativos is not None:
                 faltas = row.get('Faltas', 0)
                 saldo_retro = row.get('Saldo_Retroativo_Dias', 0)
 
-                # 1. Afastado
+                # 1. Colaborador Afastado
                 if mat in mats_afastadas:
                     return pd.Series({
                         'Status': 'Afastado - Benefício Suspenso',
@@ -186,8 +184,9 @@ if file_ativos is not None:
                         'Saldo_Proximo_Mes': 0
                     })
 
-                # 2. Admitido pós-corte
+                # 2. Admitido pós-corte (após dia 23)
                 if admissao and admissao > data_corte:
+                    # Calcula dias proporcionais restantes na base comercial de 30 dias
                     dias_acumular = max(0, 30 - admissao.day + 1)
                     return pd.Series({
                         'Status': f'Admitido pós-corte ({admissao.strftime("%d/%m")})',
@@ -197,8 +196,8 @@ if file_ativos is not None:
                         'Saldo_Proximo_Mes': saldo_retro + dias_acumular
                     })
 
-                # 3. Regular
-                dias_calculados = max(0, dias_uteis + saldo_retro - faltas)
+                # 3. Colaborador Regular
+                dias_calculados = max(0, dias_base_mes + saldo_retro - faltas)
                 return pd.Series({
                     'Status': 'Elegível',
                     'Entra_Carga': True,
@@ -214,7 +213,7 @@ if file_ativos is not None:
             df_retidos = df_final[df_final['Entra_Carga'] == False]
 
             # ==========================================
-            # RESULTADOS E DOWNLOADS
+            # RESUMO E EXPORTAÇÕES
             # ==========================================
             st.markdown("---")
             st.subheader("📊 Resumo do Pedido")
