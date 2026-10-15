@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 import io
 import os
 import base64
@@ -41,7 +42,7 @@ def carregar_logo():
 logo_b64 = carregar_logo()
 
 # ==========================================
-# CSS PROFISSIONAL - DESIGN TURIN
+# CSS CLEAN & EXECUTIVO - DESIGN TURIN
 # ==========================================
 st.markdown("""
     <style>
@@ -67,16 +68,17 @@ st.markdown("""
             background-color: #f8fafc;
         }
 
+        /* BANNER PRINCIPAL CLEAN */
         .header-container {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            padding: 18px 26px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            padding: 20px 28px;
             border-radius: 12px;
             margin-top: 0px !important;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             border-left: 6px solid #22c55e;
         }
         .header-title {
@@ -87,44 +89,48 @@ st.markdown("""
             letter-spacing: -0.5px;
         }
         .header-subtitle {
-            color: #cbd5e1 !important;
+            color: #94a3b8 !important;
             font-size: 13px;
-            margin: 4px 0 0 0;
+            margin: 6px 0 0 0;
+            font-weight: 400;
+        }
+        .header-subtitle b {
+            color: #e2e8f0 !important;
         }
         .header-badge {
-            background-color: rgba(34, 197, 94, 0.15);
+            background-color: rgba(34, 197, 94, 0.12);
             color: #4ade80;
             padding: 6px 14px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(34, 197, 94, 0.3);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(34, 197, 94, 0.25);
             white-space: nowrap;
         }
 
+        /* SIDEBAR CLEAN */
         section[data-testid="stSidebar"] {
             background-color: #ffffff;
             border-right: 1px solid #e2e8f0;
         }
         .sidebar-logo-box {
             text-align: center;
-            padding: 10px 0 20px 0;
+            padding: 10px 0 16px 0;
             border-bottom: 1px solid #f1f5f9;
             margin-bottom: 15px;
         }
 
-        /* Estilização Executiva dos Cards da Sidebar */
+        /* CARDS DA BARRA LATERAL */
         .param-card {
-            background: #ffffff;
+            background: #f8fafc;
             border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 16px;
-            margin: 14px 0 18px 0;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
-            border-left: 4px solid #16a34a;
+            border-radius: 10px;
+            padding: 14px;
+            margin: 14px 0 16px 0;
         }
         .param-item {
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         .param-item:last-child {
             margin-bottom: 0px;
@@ -134,54 +140,49 @@ st.markdown("""
             font-weight: 700;
             color: #64748b;
             text-transform: uppercase;
-            letter-spacing: 0.6px;
-            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
         }
         .param-value {
             font-size: 13px;
             font-weight: 600;
             color: #0f172a;
-            background: #f8fafc;
-            padding: 6px 10px;
-            border-radius: 6px;
-            display: inline-block;
-            border: 1px solid #f1f5f9;
         }
 
         .total-box {
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            background: #f0fdf4;
             border: 1px solid #bbf7d0;
             border-radius: 10px;
-            padding: 14px 16px;
+            padding: 12px 14px;
             text-align: center;
-            margin-top: 15px;
+            margin-top: 14px;
         }
         .total-label {
             font-size: 11px;
             font-weight: 700;
-            color: #15803d;
+            color: #166534;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .total-value {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
-            color: #166534;
+            color: #15803d;
             margin-top: 2px;
         }
 
-        /* Métricas e Botões */
+        /* METRICAS E BOTOES */
         div[data-testid="stMetric"] {
             background-color: #ffffff;
             padding: 16px 20px;
             border-radius: 10px;
             border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
         div[data-testid="stMetricLabel"] {
             color: #64748b;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 700;
             text-transform: uppercase;
         }
         div[data-testid="stMetricValue"] {
@@ -197,13 +198,11 @@ st.markdown("""
             font-weight: 600 !important;
             border: none !important;
             padding: 8px 18px !important;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+            box-shadow: 0 2px 4px rgba(34, 197, 94, 0.15);
         }
         .stButton>button:hover, .stDownloadButton>button:hover {
             background-color: #16a34a !important;
-            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.3);
-            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(34, 197, 94, 0.25);
         }
 
         div[data-testid="stFileUploader"] {
@@ -216,25 +215,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# COMPETÊNCIAS PRÉ-DEFINIDAS (D-1 PARA FALTAS)
+# CÁLCULO DINÂMICO DE COMPETÊNCIA E D-1
 # ==========================================
 hoje = date.today()
-ANO_VIGENTE = hoje.year
 
-CONFIG_COMPETENCIAS = {
-    f"01/01/{ANO_VIGENTE}": f"16/11/{ANO_VIGENTE-1} a 15/12/{ANO_VIGENTE-1}",
-    f"01/02/{ANO_VIGENTE}": f"16/12/{ANO_VIGENTE-1} a 15/01/{ANO_VIGENTE}",
-    f"01/03/{ANO_VIGENTE}": f"16/01/{ANO_VIGENTE} a 15/02/{ANO_VIGENTE}",
-    f"01/04/{ANO_VIGENTE}": f"16/02/{ANO_VIGENTE} a 15/03/{ANO_VIGENTE}",
-    f"01/05/{ANO_VIGENTE}": f"16/03/{ANO_VIGENTE} a 15/04/{ANO_VIGENTE}",
-    f"01/06/{ANO_VIGENTE}": f"16/04/{ANO_VIGENTE} a 15/05/{ANO_VIGENTE}",
-    f"01/07/{ANO_VIGENTE}": f"16/05/{ANO_VIGENTE} a 15/06/{ANO_VIGENTE}",
-    f"01/08/{ANO_VIGENTE}": f"16/06/{ANO_VIGENTE} a 15/07/{ANO_VIGENTE}",
-    f"01/09/{ANO_VIGENTE}": f"16/07/{ANO_VIGENTE} a 15/08/{ANO_VIGENTE}",
-    f"01/10/{ANO_VIGENTE}": f"16/08/{ANO_VIGENTE} a 15/09/{ANO_VIGENTE}",
-    f"01/11/{ANO_VIGENTE}": f"16/09/{ANO_VIGENTE} a 15/10/{ANO_VIGENTE}",
-    f"01/12/{ANO_VIGENTE}": f"16/10/{ANO_VIGENTE} a 15/11/{ANO_VIGENTE}"
-}
+# Gera lista de opções de competências (mês atual e meses ao redor)
+opcoes_datas = [hoje.replace(day=1) + relativedelta(months=i) for i in range(-5, 7)]
+dict_competencias = {d.strftime("01/%m/%Y"): d for d in opcoes_datas}
 
 # ==========================================
 # BARRA LATERAL
@@ -242,7 +229,7 @@ CONFIG_COMPETENCIAS = {
 with st.sidebar:
     if logo_b64:
         st.markdown(
-            f'<div class="sidebar-logo-box"><img src="{logo_b64}" style="max-width: 170px; height: auto;"></div>',
+            f'<div class="sidebar-logo-box"><img src="{logo_b64}" style="max-width: 160px; height: auto;"></div>',
             unsafe_allow_html=True
         )
     else:
@@ -251,26 +238,36 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-    st.markdown("### ⚙️ Parâmetros do Fechamento")
+    st.markdown("### ⚙️ Parâmetros")
     
-    lista_competencias = list(CONFIG_COMPETENCIAS.keys())
-    idx_padrao = min(max(0, hoje.month - 1), 11)
+    comp_str_lista = list(dict_competencias.keys())
+    idx_comp_atual = comp_str_lista.index(hoje.strftime("01/%m/%Y")) if hoje.strftime("01/%m/%Y") in comp_str_lista else 5
     
-    competencia_selecionada = st.selectbox(
+    competencia_str = st.selectbox(
         "Mês de Pagamento do Ticket",
-        options=lista_competencias,
-        index=idx_padrao
+        options=comp_str_lista,
+        index=idx_comp_atual
     )
     
-    periodo_faltas_ativo = CONFIG_COMPETENCIAS[competencia_selecionada]
+    dt_comp = dict_competencias[competencia_str]
+    
+    # Cálculo Automático das Faltas em D-1
+    # Exemplo: Pagamento em 01/10/2026 -> Ponto de 16/08/2026 a 15/09/2026
+    dt_ponto_fim = dt_comp - relativedelta(months=1)
+    dt_ponto_fim_15 = dt_ponto_fim.replace(day=15)
+    dt_ponto_ini_16 = (dt_ponto_fim_15 - relativedelta(months=1)).replace(day=16)
+    
+    periodo_faltas_ativo = f"{dt_ponto_ini_16.strftime('%d/%m/%Y')} a {dt_ponto_fim_15.strftime('%d/%m/%Y')}"
 
+    # Corte de Admissão (Padrão: Data atual)
     data_corte = st.date_input(
         "Corte de Admissão",
         value=hoje,
         format="DD/MM/YYYY",
-        help="Admissões posteriores a esta data não entram nesta carga e acumulam saldo para o mês seguinte."
+        help="Admissões após esta data não entram no crédito atual e acumulam saldo para o mês seguinte."
     )
 
+    # CARD CLEAN SINCRONIZADO
     st.markdown(f"""
         <div class="param-card">
             <div class="param-item">
@@ -301,23 +298,24 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption(
-        "🔒 **Conformidade LGPD:**\n"
-        "• Sistema sem armazenamento de CPF\n"
-        "• Chave única: Matrícula Funcional\n\n"
-        "**Regras:**\n"
+        "🔒 **LGPD:** Sem CPF armazenado\n"
         "• Demitidos: Excluídos (pago em TRCT)\n"
-        "• Afastados: Suspensos\n"
+        "• Afastados: Benefício suspenso\n"
         "• Pós-Corte: Saldo retido p/ próximo mês"
     )
 
 # ==========================================
-# CABEÇALHO PRINCIPAL
+# CABEÇALHO PRINCIPAL SINCRONIZADO E ELEGANTE
 # ==========================================
 st.markdown(f"""
     <div class="header-container">
         <div>
             <h1 class="header-title">Portal de Fechamento de Benefícios</h1>
-            <p class="header-subtitle">Competência: <b>{competencia_selecionada}</b> (Faltas de {periodo_faltas_ativo}) | Corte: <b>{data_corte.strftime('%d/%m/%Y')}</b></p>
+            <p class="header-subtitle">
+                Competência: <b>{competencia_str}</b> &nbsp;|&nbsp; 
+                Faltas (D-1): <b>{periodo_faltas_ativo}</b> &nbsp;|&nbsp; 
+                Corte de Admissão: <b>{data_corte.strftime('%d/%m/%Y')}</b>
+            </p>
         </div>
         <div class="header-badge">
             DEPARTAMENTO PESSOAL OURO BRANCO
@@ -367,7 +365,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     df_ativos['Saldo_Retroativo_Dias'] = 0
                 df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
 
-                # Cruzamento de Demitidos por Matrícula
+                # Demitidos
                 mats_demitidas = set()
                 if file_demitidos is not None:
                     df_demit = pd.read_excel(file_demitidos)
@@ -375,7 +373,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     if 'Matricula' in df_demit.columns:
                         mats_demitidas = set(df_demit['Matricula'].astype(str).str.strip().unique())
 
-                # Cruzamento de Afastados por Matrícula
+                # Afastados
                 mats_afastadas = set()
                 if file_afastados is not None:
                     df_afast = pd.read_excel(file_afastados)
@@ -509,7 +507,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 # PAINEL DE CARDS E MÉTRICAS
                 # ==========================================
                 st.markdown("---")
-                st.subheader(f"📊 Somatório de Cartões e Valores — {competencia_selecionada}")
+                st.subheader(f"📊 Somatório de Cartões e Valores — {competencia_str}")
                 
                 valor_total_geral = df_envio['Valor_Beneficio'].sum()
                 total_cartoes_geral = len(df_envio)
@@ -557,7 +555,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     st.download_button(
                         "⬇️ Baixar Lote Geral Consolidado (.xlsx)",
                         buf_ticket.getvalue(),
-                        file_name=f"lote_ticket_geral_{competencia_selecionada.replace('/', '_')}.xlsx"
+                        file_name=f"lote_ticket_geral_{competencia_str.replace('/', '_')}.xlsx"
                     )
 
                     if nome_col_unidade and df_envio[nome_col_unidade].nunique() > 1:
@@ -572,7 +570,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             cols_dl[idx].download_button(
                                 f"⬇️ Baixar {un} ({len(df_sub)} cartões)",
                                 buf_sub.getvalue(),
-                                file_name=f"ticket_{str(un).lower().replace(' ', '_')}_{competencia_selecionada.replace('/', '_')}.xlsx"
+                                file_name=f"ticket_{str(un).lower().replace(' ', '_')}_{competencia_str.replace('/', '_')}.xlsx"
                             )
 
                 with tab2:
@@ -590,7 +588,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     st.download_button(
                         "⬇️ Baixar Relatório Completo de Fechamento (.xlsx)",
                         buf_completo.getvalue(),
-                        file_name=f"fechamento_completo_{competencia_selecionada.replace('/', '_')}.xlsx",
+                        file_name=f"fechamento_completo_{competencia_str.replace('/', '_')}.xlsx",
                         help="Guarde este arquivo! Ele servirá de base para a consulta de histórico no próximo mês."
                     )
 
