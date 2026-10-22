@@ -5,41 +5,33 @@ from dateutil.relativedelta import relativedelta
 import io
 import os
 import base64
-from PIL import Image
 
 # ==========================================
-# FAVICON E CONFIGURAÇÃO DA PÁGINA
+# CONFIGURAÇÃO DA PÁGINA
 # ==========================================
-icone_separador = "💳"
-possiveis_nomes = ["LOGO.PNG", "logo.png", "LOGO.png", "logo.PNG", "LOGO.jpeg", "logo.jpg"]
-
-for nome in possiveis_nomes:
-    if os.path.exists(nome):
-        try:
-            icone_separador = Image.open(nome)
-            break
-        except Exception:
-            pass
-
 st.set_page_config(
     page_title="Turin | Portal de Gestão de Benefícios",
-    page_icon=icone_separador,
+    page_icon="💳",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ==========================================
-# CARREGAMENTO DA LOGO (BASE64)
+# FUNÇÃO SEGURA PARA CARREGAR LOGO
 # ==========================================
-def carregar_logo():
+def obter_logo_b64():
+    possiveis_nomes = ["LOGO.PNG", "logo.png", "LOGO.png", "logo.PNG", "LOGO.jpeg", "logo.jpg"]
     for nome in possiveis_nomes:
         if os.path.exists(nome):
-            with open(nome, "rb") as f:
-                encoded = base64.b64encode(f.read()).decode()
-            return f"data:image/png;base64,{encoded}"
+            try:
+                with open(nome, "rb") as f:
+                    encoded = base64.b64encode(f.read()).decode()
+                return f"data:image/png;base64,{encoded}"
+            except Exception:
+                pass
     return None
 
-logo_b64 = carregar_logo()
+logo_b64 = obter_logo_b64()
 
 def normalizar_cpf(serie):
     return serie.astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
@@ -58,7 +50,7 @@ def converter_para_data(val):
     return None
 
 # ==========================================
-# CSS CLEAN
+# CSS LIMPO E SEGURO
 # ==========================================
 st.markdown("""
     <style>
@@ -69,7 +61,7 @@ st.markdown("""
         }
 
         .block-container {
-            padding-top: 1rem !important;
+            padding-top: 1.5rem !important;
             padding-bottom: 2rem !important;
             padding-left: 2rem !important;
             padding-right: 2rem !important;
@@ -77,7 +69,6 @@ st.markdown("""
 
         header[data-testid="stHeader"] {
             background: transparent !important;
-            height: 1.5rem !important;
         }
 
         .stApp {
@@ -211,12 +202,9 @@ with st.sidebar:
         index=idx_comp_atual
     )
     
-    dt_comp = dict_competencias[competencia_str] # Data do pagamento (ex: 01/11/2026)
-    
-    # Mês trabalhado a ser apurado (ex: Outubro/2026)
+    dt_comp = dict_competencias[competencia_str]
     dt_mes_trabalhado = dt_comp - relativedelta(months=1)
     
-    # Período de Ponto em D-1 (ex: 16/08/2026 a 15/09/2026)
     dt_ponto_fim = dt_comp - relativedelta(months=1)
     dt_ponto_fim_15 = dt_ponto_fim.replace(day=15)
     dt_ponto_ini_16 = (dt_ponto_fim_15 - relativedelta(months=1)).replace(day=16)
@@ -314,7 +302,6 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     df_ativos['Saldo_Retroativo_Dias'] = 0
                 df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
 
-                # Demitidos
                 cpfs_demitidos = set()
                 if file_demitidos is not None:
                     df_demit = pd.read_excel(file_demitidos)
@@ -322,7 +309,6 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     if 'CPF' in df_demit.columns:
                         cpfs_demitidos = set(normalizar_cpf(df_demit['CPF']).unique())
 
-                # Afastados
                 cpfs_afastados = set()
                 if file_afastados is not None:
                     df_afast = pd.read_excel(file_afastados)
@@ -383,11 +369,12 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
 
                 # ==========================================
-                # MOTOR DE CÁLCULO
+                # MOTOR DE CÁLCULO GERENCIAL
                 # ==========================================
                 def processar_regras(row):
                     cpf_id = str(row['CPF_Clean'])
                     data_adm = row['Data_Admissao_Clean']
+                    str_adm_formatada = data_adm.strftime("%d/%m/%Y") if data_adm else ""
 
                     faltas = int(row.get('Faltas', 0))
                     saldo_retro = int(row.get('Saldo_Retroativo_Dias', 0))
@@ -395,20 +382,26 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     # 1. Demitido
                     if cpf_id in cpfs_demitidos:
                         return pd.Series({
+                            'Valor_Base': valor_mensal_cheio,
+                            'Dias_Trabalhados_Efetivamente': 0,
+                            'Faltas': faltas,
+                            'Total_Dias_Pagos': 0,
+                            'Valor_Total_Pago': 0.0,
                             'Status': 'Demitido (Pago em TRCT)',
                             'Entra_Carga': False,
-                            'Dias_Pagar': 0,
-                            'Valor_Final': 0.0,
                             'Saldo_Proximo_Mes': 0
                         })
 
                     # 2. Afastado
                     if cpf_id in cpfs_afastados:
                         return pd.Series({
+                            'Valor_Base': valor_mensal_cheio,
+                            'Dias_Trabalhados_Efetivamente': 0,
+                            'Faltas': faltas,
+                            'Total_Dias_Pagos': 0,
+                            'Valor_Total_Pago': 0.0,
                             'Status': 'Afastado (Suspenso)',
                             'Entra_Carga': False,
-                            'Dias_Pagar': 0,
-                            'Valor_Final': 0.0,
                             'Saldo_Proximo_Mes': 0
                         })
 
@@ -417,46 +410,63 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                         dia_admissao = int(data_adm.day)
                         dias_acumular = max(0, 30 - dia_admissao + 1)
                         return pd.Series({
-                            'Status': f'Admitido pós-corte ({data_adm.strftime("%d/%m/%Y")})',
+                            'Valor_Base': valor_mensal_cheio,
+                            'Dias_Trabalhados_Efetivamente': 0,
+                            'Faltas': faltas,
+                            'Total_Dias_Pagos': 0,
+                            'Valor_Total_Pago': 0.0,
+                            'Status': f'Admitido pós-corte ({str_adm_formatada})',
                             'Entra_Carga': False,
-                            'Dias_Pagar': 0,
-                            'Valor_Final': 0.0,
                             'Saldo_Proximo_Mes': saldo_retro + dias_acumular
                         })
 
-                    # 4. Cálculo Proporcional da Admissão
+                    # 4. Elegíveis e Admitidos Proporcionais
                     dias_base_direito = int(dias_base_mes)
 
                     if data_adm:
-                        # Se foi admitido no mês IMEDIATAMENTE ANTERIOR ao pagamento (ex: admitido em Outubro p/ pagamento em 01/11)
                         if data_adm.year == dt_mes_trabalhado.year and data_adm.month == dt_mes_trabalhado.month:
                             dias_base_direito = max(0, 30 - int(data_adm.day) + 1)
                             status_str = f'Admitido proporcional ({data_adm.strftime("%d/%m")})'
                         else:
-                            # Admitidos em Setembro ou meses anteriores recebem mês cheio (30 dias)
                             status_str = 'Elegível'
                     else:
                         status_str = 'Elegível'
 
-                    dias_calculados = max(0, dias_base_direito + saldo_retro - faltas)
-                    valor_pago = float(dias_calculados * valor_diario)
+                    dias_efetivos = dias_base_direito + saldo_retro
+                    dias_pagos = max(0, dias_efetivos - faltas)
+                    valor_pago = float(dias_pagos * valor_diario)
 
                     return pd.Series({
+                        'Valor_Base': valor_mensal_cheio,
+                        'Dias_Trabalhados_Efetivamente': dias_efetivos,
+                        'Faltas': faltas,
+                        'Total_Dias_Pagos': dias_pagos,
+                        'Valor_Total_Pago': valor_pago,
                         'Status': status_str,
-                        'Entra_Carga': True if dias_calculados > 0 else False,
-                        'Dias_Pagar': dias_calculados,
-                        'Valor_Final': valor_pago,
+                        'Entra_Carga': True if dias_pagos > 0 else False,
                         'Saldo_Proximo_Mes': 0
                     })
 
                 res = df_ativos.apply(processar_regras, axis=1)
                 df_final = pd.concat([df_ativos, res], axis=1)
 
-                cols_export = ['Nome', 'Valor_Final']
+                # Formatando a coluna de Admissão para exibição bonita no Excel
+                if 'Data_Admissao_Clean' in df_final.columns:
+                    df_final['Admissao'] = df_final['Data_Admissao_Clean'].apply(lambda x: x.strftime('%d/%m/%Y') if x else '')
+
+                # Seleção de Colunas para a Planilha Gerencial Consolidada
+                cols_gerencial = ['Nome', 'Admissao', 'Valor_Base', 'Dias_Trabalhados_Efetivamente', 'Faltas', 'Total_Dias_Pagos', 'Valor_Total_Pago', 'Status']
+                if nome_col_unidade:
+                    cols_gerencial.insert(1, nome_col_unidade)
+                
+                df_gerencial = df_final[cols_gerencial]
+
+                # Planilha de Carga Simples p/ Ticket (Nome, Unidade, Valor_Beneficio)
+                cols_export = ['Nome', 'Valor_Total_Pago']
                 if nome_col_unidade:
                     cols_export.insert(1, nome_col_unidade)
                     
-                df_envio = df_final[df_final['Entra_Carga'] == True][cols_export].rename(columns={'Valor_Final': 'Valor_Beneficio'})
+                df_envio = df_final[df_final['Entra_Carga'] == True][cols_export].rename(columns={'Valor_Total_Pago': 'Valor_Beneficio'})
                 df_retidos = df_final[df_final['Entra_Carga'] == False]
                 total_demitidos = len(df_final[df_final['Status'] == 'Demitido (Pago em TRCT)'])
 
@@ -500,17 +510,31 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 # ==========================================
                 # TABS DE EXPORTAÇÃO
                 # ==========================================
-                tab1, tab2, tab3 = st.tabs(["✅ Arquivos para Ticket", "🚫 Demitidos e Suspensos", "📋 Base Completa de Fechamento"])
+                tab1, tab2, tab3 = st.tabs(["📋 Planilha Gerencial Consolidada (Todos)", "✅ Carga para Ticket", "🚫 Demitidos e Suspensos"])
 
                 with tab1:
+                    st.caption("Planilha gerencial contendo a apuração completa de todos os colaboradores (elegíveis, afastados, demitidos e novos):")
+                    st.dataframe(df_gerencial, use_container_width=True)
+                    
+                    buf_gerencial = io.BytesIO()
+                    with pd.ExcelWriter(buf_gerencial, engine='openpyxl') as writer:
+                        df_gerencial.to_excel(writer, index=False)
+                    st.download_button(
+                        "⬇️ Baixar Planilha Gerencial Consolidada (.xlsx)",
+                        buf_gerencial.getvalue(),
+                        file_name=f"fechamento_gerencial_{competencia_str.replace('/', '_')}.xlsx"
+                    )
+
+                with tab2:
+                    st.caption("Lote enxuto contendo apenas colaboradores elegíveis com valores a creditar:")
                     st.dataframe(df_envio, use_container_width=True)
                     
-                    st.markdown("##### 📥 Opções de Download")
+                    st.markdown("##### 📥 Opções de Download da Carga")
                     buf_ticket = io.BytesIO()
                     with pd.ExcelWriter(buf_ticket, engine='openpyxl') as writer:
                         df_envio.to_excel(writer, index=False)
                     st.download_button(
-                        "⬇️ Baixar Lote Geral Consolidado (.xlsx)",
+                        "⬇️ Baixar Lote Geral Consolidado Ticket (.xlsx)",
                         buf_ticket.getvalue(),
                         file_name=f"lote_ticket_geral_{competencia_str.replace('/', '_')}.xlsx"
                     )
@@ -530,26 +554,12 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                                 file_name=f"ticket_{str(un).lower().replace(' ', '_')}_{competencia_str.replace('/', '_')}.xlsx"
                             )
 
-                with tab2:
+                with tab3:
                     st.caption("Colaboradores que não entrarão no arquivo de carga da Ticket:")
                     cols_ret = ['Nome', 'CPF', 'Status', 'Saldo_Proximo_Mes']
                     if nome_col_unidade:
                         cols_ret.insert(1, nome_col_unidade)
                     st.dataframe(df_retidos[cols_ret], use_container_width=True)
-
-                with tab3:
-                    cols_drop = ['CPF_Clean', 'Data_Admissao_Clean']
-                    cols_completo = [c for c in df_final.columns if c not in cols_drop]
-                    st.dataframe(df_final[cols_completo], use_container_width=True)
-                    buf_completo = io.BytesIO()
-                    with pd.ExcelWriter(buf_completo, engine='openpyxl') as writer:
-                        df_final[cols_completo].to_excel(writer, index=False)
-                    st.download_button(
-                        "⬇️ Baixar Relatório Completo de Fechamento (.xlsx)",
-                        buf_completo.getvalue(),
-                        file_name=f"fechamento_completo_{competencia_str.replace('/', '_')}.xlsx",
-                        help="Guarde este arquivo! Ele servirá de base para a consulta de histórico no próximo mês."
-                    )
 
         except Exception as e:
             st.error(f"Erro no processamento dos dados: {e}")
@@ -559,7 +569,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
 # --------------------------------------------------------------------------
 else:
     st.markdown("### 📂 Consulta & Auditoria de Fechamentos Anteriores")
-    st.info("Suba aqui o arquivo `fechamento_completo_XX_XXXX.xlsx` baixado no mês anterior para auditar valores pagos, faltas e saldos retidos.")
+    st.info("Suba aqui o arquivo `fechamento_gerencial_XX_XXXX.xlsx` baixado no mês anterior para auditar valores pagos, faltas e saldos retidos.")
     
     file_historico = st.file_uploader("Selecione o arquivo de fechamento completo do mês anterior (.xlsx)", type=["xlsx"])
     
@@ -571,8 +581,8 @@ else:
             col_unid_hist = [c for c in df_hist.columns if c.lower() in ['unidade', 'filial', 'cnpj', 'empresa']]
             nome_unid_hist = col_unid_hist[0] if col_unid_hist else None
             
-            df_hist_pagos = df_hist[df_hist.get('Entra_Carga', True) == True]
-            valor_pago_hist = df_hist_pagos['Valor_Final'].sum() if 'Valor_Final' in df_hist_pagos.columns else (df_hist_pagos['Valor_Beneficio'].sum() if 'Valor_Beneficio' in df_hist_pagos.columns else 0.0)
+            df_hist_pagos = df_hist[df_hist.get('Valor_Total_Pago', 0) > 0]
+            valor_pago_hist = df_hist_pagos['Valor_Total_Pago'].sum() if 'Valor_Total_Pago' in df_hist_pagos.columns else 0.0
             
             st.markdown("#### 📈 Visão Geral do Fechamento Consultado")
             ch1, ch2, ch3, ch4 = st.columns(4)
@@ -588,35 +598,23 @@ else:
                 cols_un = st.columns(df_hist_pagos[nome_unid_hist].nunique())
                 for idx, u in enumerate(df_hist_pagos[nome_unid_hist].unique()):
                     sub_u = df_hist_pagos[df_hist_pagos[nome_unid_hist] == u]
-                    v_u = sub_u['Valor_Final'].sum() if 'Valor_Final' in sub_u.columns else 0.0
+                    v_u = sub_u['Valor_Total_Pago'].sum() if 'Valor_Total_Pago' in sub_u.columns else 0.0
                     cols_un[idx].metric(f"{str(u).upper()}", f"R$ {v_u:,.2f}", help=f"{len(sub_u)} cartões")
             
             st.markdown("---")
             st.subheader("🔍 Localizar Colaborador no Histórico")
-            termo_busca = st.text_input("Digite o CPF ou Nome para pesquisar:")
+            termo_busca = st.text_input("Digite o Nome para pesquisar:")
             
             if termo_busca:
                 termo = termo_busca.strip().lower()
                 resultado = df_hist[
-                    df_hist['CPF'].astype(str).str.lower().str.contains(termo, na=False) |
                     df_hist['Nome'].astype(str).str.lower().str.contains(termo, na=False)
                 ]
                 if not resultado.empty:
                     st.success(f"Encontrado(s) {len(resultado)} registro(s):")
-                    cols_show = ['CPF', 'Nome', 'Status', 'Faltas', 'Valor_Final', 'Saldo_Proximo_Mes']
-                    cols_validas = [c for c in cols_show if c in resultado.columns]
-                    st.dataframe(resultado[cols_validas], use_container_width=True)
+                    st.dataframe(resultado, use_container_width=True)
                 else:
                     st.warning("Nenhum colaborador encontrado com os dados informados.")
-
-            if not df_com_saldo.empty:
-                st.markdown("---")
-                st.subheader("🎁 Saldo Retido Identificado (Admissões Pós-Corte)")
-                st.caption("Estes colaboradores devem ter seus dias acumulados somados na base do fechamento deste mês:")
-                cols_saldo = ['CPF', 'Nome', 'Data_Admissao', 'Saldo_Proximo_Mes']
-                if nome_unid_hist:
-                    cols_saldo.insert(2, nome_unid_hist)
-                st.dataframe(df_com_saldo[cols_saldo], use_container_width=True)
 
         except Exception as e:
             st.error(f"Não foi possível ler o arquivo de histórico: {e}")
