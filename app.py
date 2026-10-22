@@ -41,8 +41,24 @@ def carregar_logo():
 
 logo_b64 = carregar_logo()
 
+def normalizar_cpf(serie):
+    return serie.astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
+
+def converter_para_data(val):
+    if pd.isna(val) or val is None:
+        return None
+    if isinstance(val, (datetime, date, pd.Timestamp)):
+        return val.date() if hasattr(val, 'date') else val
+    try:
+        dt = pd.to_datetime(val, dayfirst=True, errors='coerce')
+        if pd.notnull(dt):
+            return dt.date()
+    except Exception:
+        pass
+    return None
+
 # ==========================================
-# CSS CLEAN & EXECUTIVO - DESIGN TURIN
+# CSS CLEAN & ESTÁVEL (SEM QUEBRAR O REACT)
 # ==========================================
 st.markdown("""
     <style>
@@ -73,7 +89,6 @@ st.markdown("""
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             padding: 20px 28px;
             border-radius: 12px;
-            margin-top: 0px !important;
             margin-bottom: 22px;
             display: flex;
             align-items: center;
@@ -109,7 +124,6 @@ st.markdown("""
             white-space: nowrap;
         }
 
-        /* SIDEBAR CLEAN */
         section[data-testid="stSidebar"] {
             background-color: #ffffff;
             border-right: 1px solid #e2e8f0;
@@ -121,57 +135,6 @@ st.markdown("""
             margin-bottom: 15px;
         }
 
-        /* CARDS DA BARRA LATERAL */
-        .param-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 14px;
-            margin: 14px 0 16px 0;
-        }
-        .param-item {
-            margin-bottom: 10px;
-        }
-        .param-item:last-child {
-            margin-bottom: 0px;
-        }
-        .param-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
-        }
-        .param-value {
-            font-size: 13px;
-            font-weight: 600;
-            color: #0f172a;
-        }
-
-        .total-box {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            border-radius: 10px;
-            padding: 12px 14px;
-            text-align: center;
-            margin-top: 14px;
-        }
-        .total-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: #166534;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .total-value {
-            font-size: 22px;
-            font-weight: 800;
-            color: #15803d;
-            margin-top: 2px;
-        }
-
-        /* METRICAS E BOTOES */
         div[data-testid="stMetric"] {
             background-color: #ffffff;
             padding: 16px 20px;
@@ -219,9 +182,9 @@ st.markdown("""
 # ==========================================
 hoje = date.today()
 
-# Gera lista de opções de competências (mês atual e meses ao redor)
+# Gera lista de opções garantindo o formato estrito DD/MM/YYYY
 opcoes_datas = [hoje.replace(day=1) + relativedelta(months=i) for i in range(-5, 7)]
-dict_competencias = {d.strftime("01/%m/%Y"): d for d in opcoes_datas}
+dict_competencias = {d.strftime("%d/%m/%Y"): d for d in opcoes_datas}
 
 # ==========================================
 # BARRA LATERAL
@@ -241,7 +204,8 @@ with st.sidebar:
     st.markdown("### ⚙️ Parâmetros")
     
     comp_str_lista = list(dict_competencias.keys())
-    idx_comp_atual = comp_str_lista.index(hoje.strftime("01/%m/%Y")) if hoje.strftime("01/%m/%Y") in comp_str_lista else 5
+    chave_hoje = hoje.strftime("01/%m/%Y")
+    idx_comp_atual = comp_str_lista.index(chave_hoje) if chave_hoje in comp_str_lista else 5
     
     competencia_str = st.selectbox(
         "Mês de Pagamento do Ticket",
@@ -249,37 +213,27 @@ with st.sidebar:
         index=idx_comp_atual
     )
     
-    dt_comp = dict_competencias[competencia_str]
+    dt_comp = dict_competencias[competencia_str] # Data do pagamento
+    dt_mes_trabalhado = dt_comp - relativedelta(months=1)
     
-    # Cálculo Automático das Faltas em D-1
-    # Exemplo: Pagamento em 01/10/2026 -> Ponto de 16/08/2026 a 15/09/2026
+    # Período de Ponto em D-1
     dt_ponto_fim = dt_comp - relativedelta(months=1)
     dt_ponto_fim_15 = dt_ponto_fim.replace(day=15)
     dt_ponto_ini_16 = (dt_ponto_fim_15 - relativedelta(months=1)).replace(day=16)
     
     periodo_faltas_ativo = f"{dt_ponto_ini_16.strftime('%d/%m/%Y')} a {dt_ponto_fim_15.strftime('%d/%m/%Y')}"
 
-    # Corte de Admissão (Padrão: Data atual)
     data_corte = st.date_input(
         "Corte de Admissão",
         value=hoje,
         format="DD/MM/YYYY",
-        help="Admissões após esta data não entram no crédito atual e acumulam saldo para o mês seguinte."
+        help="Admissões após esta data não entram no crédito atual e acumulam saldo para o próximo mês."
     )
 
-    # CARD CLEAN SINCRONIZADO
-    st.markdown(f"""
-        <div class="param-card">
-            <div class="param-item">
-                <div class="param-label">🗓️ Período de Ponto (D-1)</div>
-                <div class="param-value">{periodo_faltas_ativo}</div>
-            </div>
-            <div class="param-item">
-                <div class="param-label">✂️ Trava de Admissão</div>
-                <div class="param-value">{data_corte.strftime('%d/%m/%Y')}</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.info(
+        f"🗓️ **Período de Ponto (D-1):**\n`{periodo_faltas_ativo}`\n\n"
+        f"✂️ **Trava de Admissão:**\n`{data_corte.strftime('%d/%m/%Y')}`"
+    )
 
     col_par1, col_par2 = st.columns(2)
     with col_par1:
@@ -289,23 +243,18 @@ with st.sidebar:
         
     valor_mensal_cheio = dias_base_mes * valor_diario
     
-    st.markdown(f"""
-        <div class="total-box">
-            <div class="total-label">Total Mês Cheio</div>
-            <div class="total-value">R$ {valor_mensal_cheio:,.2f}</div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.metric("Total Mês Cheio", f"R$ {valor_mensal_cheio:,.2f}")
 
     st.markdown("---")
     st.caption(
-        "🔒 **LGPD:** Sem CPF armazenado\n"
+        "🔒 **LGPD:** Identificação por CPF interno\n"
         "• Demitidos: Excluídos (pago em TRCT)\n"
         "• Afastados: Benefício suspenso\n"
         "• Pós-Corte: Saldo retido p/ próximo mês"
     )
 
 # ==========================================
-# CABEÇALHO PRINCIPAL SINCRONIZADO E ELEGANTE
+# CABEÇALHO PRINCIPAL
 # ==========================================
 st.markdown(f"""
     <div class="header-container">
@@ -333,30 +282,30 @@ modulo_principal = st.radio(
 )
 
 # --------------------------------------------------------------------------
-# MÓDULO 1: NOVO FECHAMENTO (SEM CPF)
+# MÓDULO 1: NOVO FECHAMENTO
 # --------------------------------------------------------------------------
 if modulo_principal == "⚡ Novo Fechamento da Folha":
     col_up1, col_up2, col_up3 = st.columns(3)
     with col_up1:
-        file_ativos = st.file_uploader("1️⃣ Colaboradores Ativos (.xlsx)", type=["xlsx"], help="Obrigatório: Matricula, Nome, Data_Admissao e Unidade")
+        file_ativos = st.file_uploader("1️⃣ Colaboradores Ativos (.xlsx)", type=["xlsx"], help="Obrigatório: CPF, Nome, Data_Admissao e Unidade")
     with col_up2:
-        file_demitidos = st.file_uploader("2️⃣ Relatório de Demitidos (.xlsx - Opcional)", type=["xlsx"], help="Deve conter a coluna Matricula")
+        file_demitidos = st.file_uploader("2️⃣ Relatório de Demitidos (.xlsx - Opcional)", type=["xlsx"], help="Deve conter a coluna CPF")
     with col_up3:
-        file_afastados = st.file_uploader("3️⃣ Afastados / INSS (.xlsx - Opcional)", type=["xlsx"], help="Deve conter a coluna Matricula")
+        file_afastados = st.file_uploader("3️⃣ Afastados / INSS (.xlsx - Opcional)", type=["xlsx"], help="Deve conter a coluna CPF")
 
     if file_ativos is not None:
         try:
             df_ativos = pd.read_excel(file_ativos)
             df_ativos.columns = [c.strip() for c in df_ativos.columns]
 
-            colunas_necessarias = ['Matricula', 'Nome', 'Data_Admissao']
+            colunas_necessarias = ['CPF', 'Nome', 'Data_Admissao']
             ausentes = [c for c in colunas_necessarias if c not in df_ativos.columns]
 
             if ausentes:
                 st.error(f"⚠️ As seguintes colunas não foram encontradas na Base de Ativos: {', '.join(ausentes)}")
             else:
-                df_ativos['Matricula'] = df_ativos['Matricula'].astype(str).str.strip()
-                df_ativos['Data_Admissao'] = pd.to_datetime(df_ativos['Data_Admissao'], errors='coerce')
+                df_ativos['CPF_Clean'] = normalizar_cpf(df_ativos['CPF'])
+                df_ativos['Data_Admissao_Clean'] = df_ativos['Data_Admissao'].apply(converter_para_data)
                 
                 col_unidade = [c for c in df_ativos.columns if c.lower() in ['unidade', 'filial', 'cnpj', 'empresa']]
                 nome_col_unidade = col_unidade[0] if col_unidade else None
@@ -366,20 +315,20 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
 
                 # Demitidos
-                mats_demitidas = set()
+                cpfs_demitidos = set()
                 if file_demitidos is not None:
                     df_demit = pd.read_excel(file_demitidos)
                     df_demit.columns = [c.strip() for c in df_demit.columns]
-                    if 'Matricula' in df_demit.columns:
-                        mats_demitidas = set(df_demit['Matricula'].astype(str).str.strip().unique())
+                    if 'CPF' in df_demit.columns:
+                        cpfs_demitidos = set(normalizar_cpf(df_demit['CPF']).unique())
 
                 # Afastados
-                mats_afastadas = set()
+                cpfs_afastados = set()
                 if file_afastados is not None:
                     df_afast = pd.read_excel(file_afastados)
                     df_afast.columns = [c.strip() for c in df_afast.columns]
-                    if 'Matricula' in df_afast.columns:
-                        mats_afastadas = set(df_afast['Matricula'].astype(str).str.strip().unique())
+                    if 'CPF' in df_afast.columns:
+                        cpfs_afastados = set(normalizar_cpf(df_afast['CPF']).unique())
 
                 # ==========================================
                 # APURAÇÃO DE FALTAS
@@ -400,19 +349,19 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                         df_faltas.columns = [c.strip() for c in df_faltas.columns]
                         col_faltas = [c for c in df_faltas.columns if 'falta' in c.lower()]
                         
-                        if col_faltas and 'Matricula' in df_faltas.columns:
+                        if col_faltas and 'CPF' in df_faltas.columns:
                             col_nome = col_faltas[0]
-                            df_faltas['Matricula'] = df_faltas['Matricula'].astype(str).str.strip()
-                            df_faltas = df_faltas[['Matricula', col_nome]].rename(columns={col_nome: 'Faltas'})
+                            df_faltas['CPF_Clean'] = normalizar_cpf(df_faltas['CPF'])
+                            df_faltas = df_faltas[['CPF_Clean', col_nome]].rename(columns={col_nome: 'Faltas'})
                             
                             if 'Faltas' in df_ativos.columns:
                                 df_ativos = df_ativos.drop(columns=['Faltas'])
                                 
-                            df_ativos = pd.merge(df_ativos, df_faltas, on='Matricula', how='left')
+                            df_ativos = pd.merge(df_ativos, df_faltas, on='CPF_Clean', how='left')
                             df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
-                            st.success(f"✅ Faltas de {periodo_faltas_ativo} integradas com sucesso!")
+                            st.success(f"✅ Faltas de {periodo_faltas_ativo} integradas por CPF!")
                         else:
-                            st.error("O arquivo precisa conter a coluna 'Matricula' e uma com 'Faltas'.")
+                            st.error("O arquivo precisa conter a coluna 'CPF' e uma coluna de 'Faltas'.")
                             df_ativos['Faltas'] = 0
                     else:
                         df_ativos['Faltas'] = 0
@@ -434,24 +383,17 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
 
                 # ==========================================
-                # MOTOR DE CÁLCULO BLINDADO
+                # MOTOR DE CÁLCULO
                 # ==========================================
                 def processar_regras(row):
-                    mat = str(row['Matricula']).strip()
-                    admissao = row['Data_Admissao']
-                    
-                    data_adm = None
-                    if pd.notnull(admissao):
-                        if isinstance(admissao, (datetime, pd.Timestamp)):
-                            data_adm = admissao.date()
-                        elif isinstance(admissao, str):
-                            data_adm = pd.to_datetime(admissao, errors='coerce').date()
+                    cpf_id = str(row['CPF_Clean'])
+                    data_adm = row['Data_Admissao_Clean']
 
                     faltas = int(row.get('Faltas', 0))
                     saldo_retro = int(row.get('Saldo_Retroativo_Dias', 0))
 
                     # 1. Demitido
-                    if mat in mats_demitidas:
+                    if cpf_id in cpfs_demitidos:
                         return pd.Series({
                             'Status': 'Demitido (Pago em TRCT)',
                             'Entra_Carga': False,
@@ -461,7 +403,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                         })
 
                     # 2. Afastado
-                    if mat in mats_afastadas:
+                    if cpf_id in cpfs_afastados:
                         return pd.Series({
                             'Status': 'Afastado (Suspenso)',
                             'Entra_Carga': False,
@@ -470,34 +412,44 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             'Saldo_Proximo_Mes': 0
                         })
 
-                    # 3. Admitido após o corte atual
+                    # 3. Trava de Admissão Pós-Corte
                     if data_adm and data_adm > data_corte:
                         dia_admissao = int(data_adm.day)
                         dias_acumular = max(0, 30 - dia_admissao + 1)
                         return pd.Series({
-                            'Status': f'Admitido pós-corte ({data_adm.strftime("%d/%m")})',
+                            'Status': f'Admitido pós-corte ({data_adm.strftime("%d/%m/%Y")})',
                             'Entra_Carga': False,
                             'Dias_Pagar': 0,
                             'Valor_Final': 0.0,
                             'Saldo_Proximo_Mes': saldo_retro + dias_acumular
                         })
 
-                    # 4. Elegível regular
-                    dias_calculados = max(0, int(dias_base_mes) + saldo_retro - faltas)
+                    # 4. Cálculo Proporcional da Admissão vs Mês Cheio
+                    dias_base_direito = int(dias_base_mes)
+
+                    if data_adm and data_adm.year == dt_mes_trabalhado.year and data_adm.month == dt_mes_trabalhado.month:
+                        dias_base_direito = max(0, 30 - int(data_adm.day) + 1)
+                        status_str = f'Admitido proporcional ({data_adm.strftime("%d/%m")})'
+                    else:
+                        status_str = 'Elegível'
+
+                    dias_calculados = max(0, dias_base_direito + saldo_retro - faltas)
+                    valor_pago = float(dias_calculados * valor_diario)
+
                     return pd.Series({
-                        'Status': 'Elegível',
-                        'Entra_Carga': True,
+                        'Status': status_str,
+                        'Entra_Carga': True if dias_calculados > 0 else False,
                         'Dias_Pagar': dias_calculados,
-                        'Valor_Final': float(dias_calculados * valor_diario),
+                        'Valor_Final': valor_pago,
                         'Saldo_Proximo_Mes': 0
                     })
 
                 res = df_ativos.apply(processar_regras, axis=1)
                 df_final = pd.concat([df_ativos, res], axis=1)
 
-                cols_export = ['Matricula', 'Nome', 'Valor_Final']
+                cols_export = ['Nome', 'Valor_Final']
                 if nome_col_unidade:
-                    cols_export.insert(2, nome_col_unidade)
+                    cols_export.insert(1, nome_col_unidade)
                     
                 df_envio = df_final[df_final['Entra_Carga'] == True][cols_export].rename(columns={'Valor_Final': 'Valor_Beneficio'})
                 df_retidos = df_final[df_final['Entra_Carga'] == False]
@@ -575,16 +527,18 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
 
                 with tab2:
                     st.caption("Colaboradores que não entrarão no arquivo de carga da Ticket:")
-                    cols_ret = ['Matricula', 'Nome', 'Status', 'Saldo_Proximo_Mes']
+                    cols_ret = ['Nome', 'CPF', 'Status', 'Saldo_Proximo_Mes']
                     if nome_col_unidade:
-                        cols_ret.insert(2, nome_col_unidade)
+                        cols_ret.insert(1, nome_col_unidade)
                     st.dataframe(df_retidos[cols_ret], use_container_width=True)
 
                 with tab3:
-                    st.dataframe(df_final, use_container_width=True)
+                    cols_drop = ['CPF_Clean', 'Data_Admissao_Clean']
+                    cols_completo = [c for c in df_final.columns if c not in cols_drop]
+                    st.dataframe(df_final[cols_completo], use_container_width=True)
                     buf_completo = io.BytesIO()
                     with pd.ExcelWriter(buf_completo, engine='openpyxl') as writer:
-                        df_final.to_excel(writer, index=False)
+                        df_final[cols_completo].to_excel(writer, index=False)
                     st.download_button(
                         "⬇️ Baixar Relatório Completo de Fechamento (.xlsx)",
                         buf_completo.getvalue(),
@@ -634,17 +588,17 @@ else:
             
             st.markdown("---")
             st.subheader("🔍 Localizar Colaborador no Histórico")
-            termo_busca = st.text_input("Digite a Matrícula ou Nome para pesquisar:")
+            termo_busca = st.text_input("Digite o CPF ou Nome para pesquisar:")
             
             if termo_busca:
                 termo = termo_busca.strip().lower()
                 resultado = df_hist[
-                    df_hist['Matricula'].astype(str).str.lower().str.contains(termo, na=False) |
+                    df_hist['CPF'].astype(str).str.lower().str.contains(termo, na=False) |
                     df_hist['Nome'].astype(str).str.lower().str.contains(termo, na=False)
                 ]
                 if not resultado.empty:
                     st.success(f"Encontrado(s) {len(resultado)} registro(s):")
-                    cols_show = ['Matricula', 'Nome', 'Status', 'Faltas', 'Valor_Final', 'Saldo_Proximo_Mes']
+                    cols_show = ['CPF', 'Nome', 'Status', 'Faltas', 'Valor_Final', 'Saldo_Proximo_Mes']
                     cols_validas = [c for c in cols_show if c in resultado.columns]
                     st.dataframe(resultado[cols_validas], use_container_width=True)
                 else:
@@ -654,7 +608,7 @@ else:
                 st.markdown("---")
                 st.subheader("🎁 Saldo Retido Identificado (Admissões Pós-Corte)")
                 st.caption("Estes colaboradores devem ter seus dias acumulados somados na base do fechamento deste mês:")
-                cols_saldo = ['Matricula', 'Nome', 'Data_Admissao', 'Saldo_Proximo_Mes']
+                cols_saldo = ['CPF', 'Nome', 'Data_Admissao', 'Saldo_Proximo_Mes']
                 if nome_unid_hist:
                     cols_saldo.insert(2, nome_unid_hist)
                 st.dataframe(df_com_saldo[cols_saldo], use_container_width=True)
