@@ -57,50 +57,49 @@ def converter_para_data(val):
         pass
     return None
 
-# Extrator de Faltas em Arquivos PDF
+# Extrator Universal de Faltas em Arquivos PDF
 def extrair_faltas_pdf(file_pdf):
     dados_extraidos = []
-    if not pdf_disponivel:
-        st.error("⚠️ A biblioteca 'pdfplumber' não está instalada no servidor. Adicione 'pdfplumber' no seu arquivo requirements.txt.")
-        return pd.DataFrame(columns=['CPF_Clean', 'Faltas'])
-
-    try:
-        with pdfplumber.open(file_pdf) as pdf:
-            for page in pdf.pages:
-                texto = page.extract_text()
-                if texto:
+    
+    # Tentativa 1: pdfplumber
+    if pdf_disponivel:
+        try:
+            with pdfplumber.open(file_pdf) as pdf:
+                for page in pdf.pages:
+                    texto = page.extract_text() or ""
                     for linha in texto.split('\n'):
-                        # Procura padrões de CPF (xxx.xxx.xxx-xx ou 11 dígitos)
                         cpf_match = re.search(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b', linha)
                         if cpf_match:
                             cpf_bruto = cpf_match.group(0)
                             cpf_clean = re.sub(r'\D', '', cpf_bruto).zfill(11)
-                            
-                            # Procura números inteiros isolados na linha referentes a faltas
                             numeros = re.findall(r'\b\d+\b', linha.replace(cpf_bruto, ''))
                             faltas = int(numeros[-1]) if numeros else 0
-                            dados_extraidos.append({'CPF_Clean': cpf_clean, 'Faltas': faltas})
+                            dados_extraidos.append({'CPF_Clean': cpf_clean, 'Faltas_Pdf': faltas})
+        except Exception:
+            pass
 
-                # Verifica também se há tabelas formatadas no PDF
-                tabelas = page.extract_tables()
-                for tabela in tabelas:
-                    for linha in tabela:
-                        linha_str = ' '.join([str(c) for c in linha if c])
-                        cpf_m = re.search(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b', linha_str)
-                        if cpf_m:
-                            cpf_c = re.sub(r'\D', '', cpf_m.group(0)).zfill(11)
-                            # Extrai último valor numérico da linha
-                            nums = re.findall(r'\b\d+\b', linha_str.replace(cpf_m.group(0), ''))
-                            f_val = int(nums[-1]) if nums else 0
-                            dados_extraidos.append({'CPF_Clean': cpf_c, 'Faltas': f_val})
+    # Tentativa 2: PyPDF / pypdf
+    if not dados_extraidos:
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(file_pdf)
+            for page in reader.pages:
+                texto = page.extract_text() or ""
+                for linha in texto.split('\n'):
+                    cpf_match = re.search(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b', linha)
+                    if cpf_match:
+                        cpf_bruto = cpf_match.group(0)
+                        cpf_clean = re.sub(r'\D', '', cpf_bruto).zfill(11)
+                        numeros = re.findall(r'\b\d+\b', linha.replace(cpf_bruto, ''))
+                        faltas = int(numeros[-1]) if numeros else 0
+                        dados_extraidos.append({'CPF_Clean': cpf_clean, 'Faltas_Pdf': faltas})
+        except Exception:
+            pass
 
-        df_res = pd.DataFrame(dados_extraidos)
-        if not df_res.empty:
-            df_res = df_res.groupby('CPF_Clean', as_index=False)['Faltas'].max()
-        return df_res
-    except Exception as e:
-        st.error(f"Erro ao ler o arquivo PDF de faltas: {e}")
-        return pd.DataFrame(columns=['CPF_Clean', 'Faltas'])
+    df_res = pd.DataFrame(dados_extraidos)
+    if not df_res.empty:
+        df_res = df_res.groupby('CPF_Clean', as_index=False)['Faltas_Pdf'].max()
+    return df_res
 
 # ==========================================
 # CSS LIMPO
@@ -258,8 +257,7 @@ with st.sidebar:
     dt_comp = dict_competencias[competencia_str] # Ex: 01/11/2026
     dt_mes_trabalhado = dt_comp - relativedelta(months=1) # Ex: Outubro/2026
     
-    # REGRA DE FALTAS D-2 (2 Meses antes do Pagamento):
-    # Pagamento em 01/11 -> Faltas de 16/08 a 15/09
+    # Faltas D-2 (2 Meses antes): 01/11 -> 16/08 a 15/09
     dt_ponto_fim = dt_comp - relativedelta(months=2)
     dt_ponto_fim_15 = dt_ponto_fim.replace(day=15)
     dt_ponto_ini_16 = (dt_ponto_fim_15 - relativedelta(months=1)).replace(day=16)
@@ -372,7 +370,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                         cpfs_afastados = set(normalizar_cpf(df_afast['CPF']).unique())
 
                 # ==========================================
-                # APURAÇÃO DE FALTAS (SUPORTE A PDF E EXCEL)
+                # APURAÇÃO DE FALTAS
                 # ==========================================
                 st.markdown("---")
                 st.subheader(f"⏱️ Apuração de Faltas — Período: {periodo_faltas_ativo}")
@@ -389,14 +387,15 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                         if file_faltas.name.lower().endswith(".pdf"):
                             df_faltas = extrair_faltas_pdf(file_faltas)
                             if not df_faltas.empty:
-                                if 'Faltas' in df_ativos.columns:
-                                    df_ativos = df_ativos.drop(columns=['Faltas'])
+                                if 'Faltas_Apuração' in df_ativos.columns:
+                                    df_ativos = df_ativos.drop(columns=['Faltas_Apuração'])
                                 df_ativos = pd.merge(df_ativos, df_faltas, on='CPF_Clean', how='left')
-                                df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
-                                st.success(f"✅ Faltas extraídas com sucesso do PDF ({periodo_faltas_ativo})!")
+                                df_ativos['Faltas_Apuração'] = pd.to_numeric(df_ativos['Faltas_Pdf'], errors='coerce').fillna(0).astype(int)
+                                df_ativos = df_ativos.drop(columns=['Faltas_Pdf'])
+                                st.success(f"✅ Faltas extraídas do PDF com sucesso!")
                             else:
-                                st.warning("Não foi possível extrair dados automáticos do PDF. Verifique se o PDF possui os números de CPF.")
-                                df_ativos['Faltas'] = 0
+                                st.warning("Não foi possível extrair os CPFs do PDF. Digite as faltas manualmente se necessário.")
+                                df_ativos['Faltas_Apuração'] = 0
                         else:
                             df_faltas = pd.read_excel(file_faltas)
                             df_faltas.columns = [c.strip() for c in df_faltas.columns]
@@ -405,48 +404,47 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             if col_faltas and 'CPF' in df_faltas.columns:
                                 col_nome = col_faltas[0]
                                 df_faltas['CPF_Clean'] = normalizar_cpf(df_faltas['CPF'])
-                                df_faltas = df_faltas[['CPF_Clean', col_nome]].rename(columns={col_nome: 'Faltas'})
+                                df_faltas = df_faltas[['CPF_Clean', col_nome]].rename(columns={col_nome: 'Faltas_Apuração'})
                                 
-                                if 'Faltas' in df_ativos.columns:
-                                    df_ativos = df_ativos.drop(columns=['Faltas'])
+                                if 'Faltas_Apuração' in df_ativos.columns:
+                                    df_ativos = df_ativos.drop(columns=['Faltas_Apuração'])
                                     
                                 df_ativos = pd.merge(df_ativos, df_faltas, on='CPF_Clean', how='left')
-                                df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
+                                df_ativos['Faltas_Apuração'] = pd.to_numeric(df_ativos['Faltas_Apuração'], errors='coerce').fillna(0).astype(int)
                                 st.success(f"✅ Faltas de {periodo_faltas_ativo} integradas por CPF!")
                             else:
                                 st.error("O arquivo Excel precisa conter a coluna 'CPF' e uma coluna de 'Faltas'.")
-                                df_ativos['Faltas'] = 0
+                                df_ativos['Faltas_Apuração'] = 0
                     else:
-                        df_ativos['Faltas'] = 0
+                        df_ativos['Faltas_Apuração'] = 0
                 else:
-                    if 'Faltas' not in df_ativos.columns:
-                        df_ativos['Faltas'] = 0
-                    df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
+                    if 'Faltas_Apuração' not in df_ativos.columns:
+                        df_ativos['Faltas_Apuração'] = 0
+                    df_ativos['Faltas_Apuração'] = pd.to_numeric(df_ativos['Faltas_Apuração'], errors='coerce').fillna(0).astype(int)
                     st.info(f"💡 Altere as faltas apuradas em {periodo_faltas_ativo} diretamente na tabela:")
                     df_ativos = st.data_editor(
                         df_ativos,
                         column_config={
-                            "Faltas": st.column_config.NumberColumn("Faltas a Descontar", min_value=0, max_value=30, step=1)
+                            "Faltas_Apuração": st.column_config.NumberColumn("Faltas a Descontar", min_value=0, max_value=30, step=1)
                         },
-                        disabled=[c for c in df_ativos.columns if c != 'Faltas'],
+                        disabled=[c for c in df_ativos.columns if c != 'Faltas_Apuração'],
                         use_container_width=True
                     )
 
-                df_ativos['Faltas'] = pd.to_numeric(df_ativos['Faltas'], errors='coerce').fillna(0).astype(int)
+                df_ativos['Faltas_Apuração'] = pd.to_numeric(df_ativos['Faltas_Apuração'], errors='coerce').fillna(0).astype(int)
                 df_ativos['Saldo_Retroativo_Dias'] = pd.to_numeric(df_ativos['Saldo_Retroativo_Dias'], errors='coerce').fillna(0).astype(int)
 
                 # ==========================================
-                # MOTOR DE CÁLCULO GERENCIAL
+                # MOTOR DE CÁLCULO
                 # ==========================================
                 def processar_regras(row):
                     cpf_id = str(row['CPF_Clean'])
                     data_adm = row['Data_Admissao_Clean']
                     str_adm_formatada = data_adm.strftime("%d/%m/%Y") if data_adm else ""
 
-                    faltas = int(row.get('Faltas', 0))
+                    faltas = int(row.get('Faltas_Apuração', 0))
                     saldo_retro = int(row.get('Saldo_Retroativo_Dias', 0))
 
-                    # 1. Demitido
                     if cpf_id in cpfs_demitidos:
                         return pd.Series({
                             'Valor_Base': valor_mensal_cheio,
@@ -459,7 +457,6 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             'Saldo_Proximo_Mes': 0
                         })
 
-                    # 2. Afastado
                     if cpf_id in cpfs_afastados:
                         return pd.Series({
                             'Valor_Base': valor_mensal_cheio,
@@ -472,7 +469,6 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             'Saldo_Proximo_Mes': 0
                         })
 
-                    # 3. Trava de Admissão Pós-Corte
                     if data_adm and data_adm > data_corte:
                         dia_admissao = int(data_adm.day)
                         dias_acumular = max(0, 30 - dia_admissao + 1)
@@ -487,7 +483,6 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                             'Saldo_Proximo_Mes': saldo_retro + dias_acumular
                         })
 
-                    # 4. Elegíveis e Admitidos Proporcionais
                     dias_base_direito = int(dias_base_mes)
 
                     if data_adm:
@@ -515,19 +510,25 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                     })
 
                 res = df_ativos.apply(processar_regras, axis=1)
-                df_final = pd.concat([df_ativos, res], axis=1)
+                
+                # Para evitar duplicidade de colunas, removemos colunas temporarias do df_ativos
+                cols_para_remover = ['Faltas_Apuração', 'Data_Admissao_Clean', 'CPF_Clean']
+                df_base_limpa = df_ativos.drop(columns=[c for c in cols_para_remover if c in df_ativos.columns])
 
-                if 'Data_Admissao_Clean' in df_final.columns:
-                    df_final['Admissao'] = df_final['Data_Admissao_Clean'].apply(lambda x: x.strftime('%d/%m/%Y') if x else '')
+                df_final = pd.concat([df_base_limpa, res], axis=1)
 
+                if 'Data_Admissao' in df_final.columns:
+                    df_final['Admissao'] = df_final['Data_Admissao'].apply(lambda x: converter_para_data(x).strftime('%d/%m/%Y') if converter_para_data(x) else '')
+
+                # Montagem limpa das colunas gerenciais
                 cols_gerencial = ['Nome', 'Admissao', 'Valor_Base', 'Dias_Trabalhados_Efetivamente', 'Faltas', 'Total_Dias_Pagos', 'Valor_Total_Pago', 'Status']
-                if nome_col_unidade:
+                if nome_col_unidade and nome_col_unidade in df_final.columns:
                     cols_gerencial.insert(1, nome_col_unidade)
                 
                 df_gerencial = df_final[cols_gerencial]
 
                 cols_export = ['Nome', 'Valor_Total_Pago']
-                if nome_col_unidade:
+                if nome_col_unidade and nome_col_unidade in df_final.columns:
                     cols_export.insert(1, nome_col_unidade)
                     
                 df_envio = df_final[df_final['Entra_Carga'] == True][cols_export].rename(columns={'Valor_Total_Pago': 'Valor_Beneficio'})
@@ -543,7 +544,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 valor_total_geral = df_envio['Valor_Beneficio'].sum()
                 total_cartoes_geral = len(df_envio)
 
-                if nome_col_unidade and df_envio[nome_col_unidade].nunique() > 1:
+                if nome_col_unidade and nome_col_unidade in df_envio.columns and df_envio[nome_col_unidade].nunique() > 1:
                     unidades = df_envio[nome_col_unidade].unique()
                     cols_cards = st.columns(2 + len(unidades))
                     
@@ -603,7 +604,7 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                         file_name=f"lote_ticket_geral_{competencia_str.replace('/', '_')}.xlsx"
                     )
 
-                    if nome_col_unidade and df_envio[nome_col_unidade].nunique() > 1:
+                    if nome_col_unidade and nome_col_unidade in df_envio.columns and df_envio[nome_col_unidade].nunique() > 1:
                         st.write("---")
                         st.caption("Arquivos individuais por Unidade / CNPJ:")
                         cols_dl = st.columns(len(df_envio[nome_col_unidade].unique()))
@@ -621,9 +622,10 @@ if modulo_principal == "⚡ Novo Fechamento da Folha":
                 with tab3:
                     st.caption("Colaboradores que não entrarão no arquivo de carga da Ticket:")
                     cols_ret = ['Nome', 'CPF', 'Status', 'Saldo_Proximo_Mes']
-                    if nome_col_unidade:
+                    if nome_col_unidade and nome_col_unidade in df_retidos.columns:
                         cols_ret.insert(1, nome_col_unidade)
-                    st.dataframe(df_retidos[cols_ret], use_container_width=True)
+                    cols_ret_existentes = [c for c in cols_ret if c in df_retidos.columns]
+                    st.dataframe(df_retidos[cols_ret_existentes], use_container_width=True)
 
         except Exception as e:
             st.error(f"Erro no processamento dos dados: {e}")
