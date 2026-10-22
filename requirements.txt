@@ -1,4 +1,7 @@
 streamlit
 pandas
 openpyxl
+python-dateutil
 pillow
+pdfplumber
+pypdf
